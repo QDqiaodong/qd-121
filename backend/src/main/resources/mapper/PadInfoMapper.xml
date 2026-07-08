@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.stamping.pad.mapper.PadInfoMapper">
+
+    <resultMap id="PadInfoResultMap" type="com.stamping.pad.entity.PadInfo">
+        <id column="id" property="id"/>
+        <result column="pad_code" property="padCode"/>
+        <result column="mold_type" property="moldType"/>
+        <result column="length" property="length"/>
+        <result column="width" property="width"/>
+        <result column="thickness" property="thickness"/>
+        <result column="image_path" property="imagePath"/>
+        <result column="shelf_layer_code" property="shelfLayerCode"/>
+        <result column="bind_time" property="bindTime"/>
+        <result column="create_time" property="createTime"/>
+        <result column="update_time" property="updateTime"/>
+        <result column="remark" property="remark"/>
+        <result column="layer_name" property="layerName"/>
+        <result column="shelf_code" property="shelfCode"/>
+    </resultMap>
+
+    <select id="selectPageList" resultMap="PadInfoResultMap">
+        SELECT p.*, sl.layer_name, sl.shelf_code
+        FROM pad_info p
+        LEFT JOIN shelf_layer sl ON p.shelf_layer_code = sl.layer_code
+        <where>
+            <if test="query.padCode != null and query.padCode != ''">
+                AND p.pad_code LIKE CONCAT('%', #{query.padCode}, '%')
+            </if>
+            <if test="query.moldType != null and query.moldType != ''">
+                AND p.mold_type LIKE CONCAT('%', #{query.moldType}, '%')
+            </if>
+            <if test="query.shelfLayerCode != null and query.shelfLayerCode != ''">
+                AND p.shelf_layer_code = #{query.shelfLayerCode}
+            </if>
+            <if test="query.shelfCode != null and query.shelfCode != ''">
+                AND sl.shelf_code = #{query.shelfCode}
+            </if>
+        </where>
+        ORDER BY p.create_time DESC
+    </select>
+
+    <select id="selectByLayerCode" resultMap="PadInfoResultMap">
+        SELECT p.*, sl.layer_name, sl.shelf_code
+        FROM pad_info p
+        LEFT JOIN shelf_layer sl ON p.shelf_layer_code = sl.layer_code
+        WHERE p.shelf_layer_code = #{layerCode}
+        ORDER BY p.pad_code ASC
+    </select>
+
+    <select id="selectByShelfCode" resultMap="PadInfoResultMap">
+        SELECT p.*, sl.layer_name, sl.shelf_code
+        FROM pad_info p
+        LEFT JOIN shelf_layer sl ON p.shelf_layer_code = sl.layer_code
+        WHERE sl.shelf_code = #{shelfCode}
+        ORDER BY p.pad_code ASC
+    </select>
+
+</mapper>

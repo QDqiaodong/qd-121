@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.stamping.pad.mapper.ShelfLayerMapper">
+
+    <resultMap id="ShelfLayerResultMap" type="com.stamping.pad.entity.ShelfLayer">
+        <id column="id" property="id"/>
+        <result column="layer_code" property="layerCode"/>
+        <result column="shelf_code" property="shelfCode"/>
+        <result column="layer_name" property="layerName"/>
+        <result column="layer_order" property="layerOrder"/>
+        <result column="create_time" property="createTime"/>
+        <result column="update_time" property="updateTime"/>
+        <result column="remark" property="remark"/>
+        <result column="pad_count" property="padCount"/>
+    </resultMap>
+
+    <select id="selectAllWithCount" resultMap="ShelfLayerResultMap">
+        SELECT sl.*, COUNT(p.id) as pad_count
+        FROM shelf_layer sl
+        LEFT JOIN pad_info p ON sl.layer_code = p.shelf_layer_code
+        GROUP BY sl.id, sl.layer_code, sl.shelf_code, sl.layer_name, sl.layer_order
+        ORDER BY sl.shelf_code ASC, sl.layer_order ASC
+    </select>
+
+    <select id="selectByLayerCode" resultMap="ShelfLayerResultMap">
+        SELECT sl.*, COUNT(p.id) as pad_count
+        FROM shelf_layer sl
+        LEFT JOIN pad_info p ON sl.layer_code = p.shelf_layer_code
+        WHERE sl.layer_code = #{layerCode}
+        GROUP BY sl.id, sl.layer_code, sl.shelf_code, sl.layer_name, sl.layer_order
+    </select>
+
+</mapper>

@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.stamping.pad.mapper.LayerAdjustRecordMapper">
+
+    <resultMap id="RecordResultMap" type="com.stamping.pad.entity.LayerAdjustRecord">
+        <id column="id" property="id"/>
+        <result column="pad_id" property="padId"/>
+        <result column="pad_code" property="padCode"/>
+        <result column="old_layer_code" property="oldLayerCode"/>
+        <result column="new_layer_code" property="newLayerCode"/>
+        <result column="adjust_type" property="adjustType"/>
+        <result column="operator" property="operator"/>
+        <result column="adjust_reason" property="adjustReason"/>
+        <result column="adjust_time" property="adjustTime"/>
+    </resultMap>
+
+    <select id="selectPageList" resultMap="RecordResultMap">
+        SELECT * FROM layer_adjust_record
+        <where>
+            <if test="query.padCode != null and query.padCode != ''">
+                AND pad_code LIKE CONCAT('%', #{query.padCode}, '%')
+            </if>
+            <if test="query.adjustType != null and query.adjustType != ''">
+                AND adjust_type = #{query.adjustType}
+            </if>
+            <if test="query.startTime != null">
+                AND adjust_time &gt;= #{query.startTime}
+            </if>
+            <if test="query.endTime != null">
+                AND adjust_time &lt;= #{query.endTime}
+            </if>
+        </where>
+        ORDER BY adjust_time DESC
+    </select>
+
+    <select id="selectByPadId" resultMap="RecordResultMap">
+        SELECT * FROM layer_adjust_record
+        WHERE pad_id = #{padId}
+        ORDER BY adjust_time DESC
+    </select>
+
+</mapper>

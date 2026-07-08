@@ -1,0 +1,108 @@
+# ======================================
+# Docker 构建上下文排除文件
+# 避免将无关文件传入构建上下文，提升构建速度
+# ======================================
+
+# ---------- Git 相关 ----------
+.git
+.gitignore
+.gitattributes
+.github
+
+# ---------- IDE 配置 ----------
+.idea
+.vscode
+*.iml
+*.iws
+*.ipr
+.project
+.classpath
+.settings
+.factorypath
+
+# ---------- 操作系统 ----------
+.DS_Store
+Thumbs.db
+desktop.ini
+$RECYCLE.BIN/
+
+# ---------- 日志文件 ----------
+*.log
+logs/
+*.out
+
+# ---------- 临时文件 ----------
+*.tmp
+*.temp
+*.swp
+*.swo
+*~
+.cache/
+
+# ---------- 后端 Java ----------
+**/target/
+**/build/
+**/out/
+*.class
+*.jar
+*.war
+*.ear
+*.nar
+hs_err_pid*
+replay_pid*
+
+# ---------- 前端 Node.js ----------
+**/node_modules/
+**/dist/
+**/.vite/
+**/.nuxt/
+**/.next/
+**/.output/
+.npm
+.eslintcache
+.stylelintcache
+
+# ---------- 前端构建产物 ----------
+*.map
+.pnp
+.pnp.js
+.yarn/cache
+.yarn/unplugged
+.yarn/build-state.yml
+.yarn/install-state.gz
+.pnp.*
+
+# ---------- 测试覆盖率 ----------
+coverage/
+.nyc_output/
+
+# ---------- 图片截图等大文件 ----------
+**/*.png
+**/*.jpg
+**/*.jpeg
+**/*.gif
+!**/src/assets/**/*.png
+!**/src/assets/**/*.jpg
+!**/src/assets/**/*.jpeg
+
+# ---------- 文档 ----------
+*.md
+!README.md
+docs/
+document/
+
+# ---------- 数据库数据 ----------
+mysql/data/
+redis/data/
+postgres/data/
+mongodb/data/
+
+# ---------- 上传文件 ----------
+backend/uploads/
+uploads/
+files/
+
+# ---------- 本地配置覆盖 ----------
+.env.local
+.env.*.local
+docker-compose.override.yml

@@ -1,0 +1,13 @@
+target
+logs
+*.log
+uploads
+tmp
+temp
+.mvn/wrapper/maven-wrapper.jar
+.DS_Store
+.idea
+.vscode
+*.iml
+*.swp
+*.swo
