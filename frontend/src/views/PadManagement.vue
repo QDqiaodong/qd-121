@@ -6,6 +6,9 @@
         <el-button type="success" @click="handleExportAll">
           <el-icon><Download /></el-icon>导出全部
         </el-button>
+        <el-button type="warning" @click="goImport">
+          <el-icon><UploadFilled /></el-icon>批量导入
+        </el-button>
         <el-button type="primary" @click="handleAdd">
           <el-icon><Plus /></el-icon>新建垫板档案
         </el-button>
@@ -355,6 +358,7 @@
 
 <script setup>
 import { ref, reactive, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import {
   getPadPage,
@@ -426,6 +430,9 @@ const bindForm = reactive({
 
 const recordDialogVisible = ref(false)
 const padRecords = ref([])
+
+const router = useRouter()
+const goImport = () => router.push('/pad/import')
 
 const formatTime = (time) => (time ? dayjs(time).format('YYYY-MM-DD HH:mm:ss') : '-')
 

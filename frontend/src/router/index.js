@@ -14,6 +14,12 @@ const routes = [
     meta: { title: '垫板档案管理' }
   },
   {
+    path: '/pad/import',
+    name: 'PadImport',
+    component: () => import('@/views/PadImport.vue'),
+    meta: { title: '垫板档案批量导入' }
+  },
+  {
     path: '/shelf',
     name: 'ShelfManagement',
     component: () => import('@/views/ShelfManagement.vue'),

@@ -187,6 +187,47 @@ public class PadInfoService {
         recordMapper.insert(record);
     }
 
+    /**
+     * 批量导入场景下单行建档，独立事务：单行失败只回滚该行，不影响其他合格数据。
+     * 调用方需提前完成必填、重复编号、层位与尺寸格式等校验。
+     */
+    @Transactional(rollbackFor = Exception.class)
+    public PadInfo importRow(PadInfo padInfo) {
+        LambdaQueryWrapper<PadInfo> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(PadInfo::getPadCode, padInfo.getPadCode());
+        if (padInfoMapper.selectCount(wrapper) > 0) {
+            throw new RuntimeException("垫板编号已存在");
+        }
+
+        LocalDateTime now = LocalDateTime.now();
+        padInfo.setCreateTime(now);
+        padInfo.setUpdateTime(now);
+
+        String layerCode = padInfo.getShelfLayerCode();
+        if (layerCode != null && !layerCode.isEmpty()) {
+            ShelfLayer layer = shelfLayerMapper.selectByLayerCode(layerCode);
+            if (layer == null) {
+                throw new RuntimeException("货架分层不存在");
+            }
+            padInfo.setBindTime(now);
+            padInfoMapper.insert(padInfo);
+
+            LayerAdjustRecord record = new LayerAdjustRecord();
+            record.setPadId(padInfo.getId());
+            record.setPadCode(padInfo.getPadCode());
+            record.setOldLayerCode(null);
+            record.setNewLayerCode(layerCode);
+            record.setAdjustType("BIND");
+            record.setOperator("系统");
+            record.setAdjustReason("批量导入初始绑定");
+            record.setAdjustTime(now);
+            recordMapper.insert(record);
+        } else {
+            padInfoMapper.insert(padInfo);
+        }
+        return padInfo;
+    }
+
     public Long countTotal() {
         return padInfoMapper.selectCount(null);
     }

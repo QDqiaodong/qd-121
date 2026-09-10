@@ -97,3 +97,32 @@ export function exportAllPads() {
     responseType: 'blob'
   })
 }
+
+export function previewImportPads(file) {
+  const formData = new FormData()
+  formData.append('file', file)
+  return request({
+    url: '/pad/import/preview',
+    method: 'post',
+    data: formData,
+    headers: {
+      'Content-Type': 'multipart/form-data'
+    }
+  })
+}
+
+export function confirmImportPads(rows) {
+  return request({
+    url: '/pad/import/confirm',
+    method: 'post',
+    data: { rows }
+  })
+}
+
+export function downloadImportTemplate() {
+  return request({
+    url: '/pad/import/template',
+    method: 'get',
+    responseType: 'blob'
+  })
+}

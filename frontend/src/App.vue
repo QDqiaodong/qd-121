@@ -28,6 +28,10 @@
               <el-icon><Goods /></el-icon>
               <span>垫板档案管理</span>
             </el-menu-item>
+            <el-menu-item index="/pad/import">
+              <el-icon><UploadFilled /></el-icon>
+              <span>垫板批量导入</span>
+            </el-menu-item>
             <el-menu-item index="/shelf">
               <el-icon><Box /></el-icon>
               <span>货架层位管理</span>
