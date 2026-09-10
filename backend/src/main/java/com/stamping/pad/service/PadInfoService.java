@@ -1,6 +1,7 @@
 package com.stamping.pad.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.stamping.pad.dto.BindLayerDTO;
 import com.stamping.pad.dto.PadInfoDTO;
@@ -19,6 +20,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Objects;
 
 @Service
 @RequiredArgsConstructor
@@ -100,10 +102,57 @@ public class PadInfoService {
             }
         }
 
+        // 层位变更按绑定/重分配/解绑规则处理：校验目标层位、更新绑定时间并写入调整记录
+        String oldLayerCode = normalizeLayerCode(existing.getShelfLayerCode());
+        String newLayerCode = normalizeLayerCode(dto.getShelfLayerCode());
+        boolean layerChanged = !Objects.equals(oldLayerCode, newLayerCode);
+        String adjustType = null;
+
+        if (layerChanged) {
+            if (newLayerCode != null && shelfLayerMapper.selectByLayerCode(newLayerCode) == null) {
+                throw new RuntimeException("货架分层不存在");
+            }
+            if (oldLayerCode == null) {
+                adjustType = "BIND";
+            } else if (newLayerCode == null) {
+                adjustType = "UNBIND";
+            } else {
+                adjustType = "REBIND";
+            }
+        }
+
         BeanUtils.copyProperties(dto, existing, "id", "createTime", "bindTime", "shelfLayerCode");
-        existing.setUpdateTime(LocalDateTime.now());
+        LocalDateTime now = LocalDateTime.now();
+        existing.setUpdateTime(now);
         padInfoMapper.updateById(existing);
+
+        if (layerChanged) {
+            // updateById 默认忽略 null 字段，层位与绑定时间需显式 set，保证解绑时能真正置空
+            LocalDateTime bindTime = "UNBIND".equals(adjustType) ? null : now;
+            LambdaUpdateWrapper<PadInfo> layerUpdate = new LambdaUpdateWrapper<>();
+            layerUpdate.eq(PadInfo::getId, existing.getId())
+                    .set(PadInfo::getShelfLayerCode, newLayerCode)
+                    .set(PadInfo::getBindTime, bindTime);
+            padInfoMapper.update(null, layerUpdate);
+            existing.setShelfLayerCode(newLayerCode);
+            existing.setBindTime(bindTime);
+
+            LayerAdjustRecord record = new LayerAdjustRecord();
+            record.setPadId(existing.getId());
+            record.setPadCode(existing.getPadCode());
+            record.setOldLayerCode(oldLayerCode);
+            record.setNewLayerCode(newLayerCode);
+            record.setAdjustType(adjustType);
+            record.setOperator("管理员");
+            record.setAdjustReason("档案编辑调整层位");
+            record.setAdjustTime(now);
+            recordMapper.insert(record);
+        }
         return existing;
+    }
+
+    private String normalizeLayerCode(String layerCode) {
+        return (layerCode == null || layerCode.isEmpty()) ? null : layerCode;
     }
 
     @Transactional(rollbackFor = Exception.class)

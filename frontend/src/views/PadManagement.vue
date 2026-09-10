@@ -229,10 +229,10 @@
             </el-form-item>
           </el-col>
           <el-col :span="16">
-            <el-form-item label="初始分层">
+            <el-form-item :label="isEdit ? '货架层位' : '初始分层'">
               <el-select
                 v-model="formData.shelfLayerCode"
-                placeholder="建档时可直接绑定分层（可选）"
+                :placeholder="isEdit ? '修改层位将按绑定规则记录调整' : '建档时可直接绑定分层（可选）'"
                 clearable
                 style="width: 100%"
               >
