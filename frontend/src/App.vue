@@ -36,6 +36,10 @@
               <el-icon><Box /></el-icon>
               <span>货架层位管理</span>
             </el-menu-item>
+            <el-menu-item index="/borrow">
+              <el-icon><Van /></el-icon>
+              <span>垫板领用归还</span>
+            </el-menu-item>
             <el-menu-item index="/record">
               <el-icon><Document /></el-icon>
               <span>调整记录台账</span>

@@ -1,7 +1,7 @@
 <template>
   <div class="dashboard">
     <el-row :gutter="20" class="stat-row">
-      <el-col :span="8">
+      <el-col :span="6">
         <div class="stat-card card-total">
           <div class="stat-icon"><el-icon :size="36"><Goods /></el-icon></div>
           <div class="stat-content">
@@ -10,7 +10,7 @@
           </div>
         </div>
       </el-col>
-      <el-col :span="8">
+      <el-col :span="6">
         <div class="stat-card card-bound">
           <div class="stat-icon"><el-icon :size="36"><CircleCheck /></el-icon></div>
           <div class="stat-content">
@@ -19,12 +19,21 @@
           </div>
         </div>
       </el-col>
-      <el-col :span="8">
-        <div class="stat-card card-unbound">
+      <el-col :span="6">
+        <div class="stat-card card-borrowed" @click="goBorrow">
+          <div class="stat-icon"><el-icon :size="36"><Van /></el-icon></div>
+          <div class="stat-content">
+            <div class="stat-label">领用中（离架）</div>
+            <div class="stat-value">{{ statistics.borrowedCount || 0 }}</div>
+          </div>
+        </div>
+      </el-col>
+      <el-col :span="6">
+        <div class="stat-card card-unbound" @click="goBorrowOverdue">
           <div class="stat-icon"><el-icon :size="36"><Warning /></el-icon></div>
           <div class="stat-content">
-            <div class="stat-label">未绑定层位</div>
-            <div class="stat-value">{{ statistics.unboundCount || 0 }}</div>
+            <div class="stat-label">逾期未还</div>
+            <div class="stat-value">{{ statistics.overdueCount || 0 }}</div>
           </div>
         </div>
       </el-col>
@@ -105,15 +114,23 @@
 
 <script setup>
 import { ref, reactive, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
 import { getStatistics } from '@/api/pad'
 import { getShelfLayerGroup } from '@/api/shelf'
 import { getRecordPage } from '@/api/record'
 import dayjs from 'dayjs'
 
+const router = useRouter()
+const goBorrow = () => router.push('/borrow')
+const goBorrowOverdue = () => router.push({ path: '/borrow', query: { overdue: 1 } })
+
 const statistics = reactive({
   totalCount: 0,
   boundCount: 0,
-  unboundCount: 0
+  unboundCount: 0,
+  borrowedCount: 0,
+  returnedCount: 0,
+  overdueCount: 0
 })
 const groupedShelves = ref([])
 const recentRecords = ref([])
@@ -125,12 +142,24 @@ const formatTime = (time) => {
 }
 
 const getAdjustTypeLabel = (type) => {
-  const map = { BIND: '初始绑定', REBIND: '变更绑定', UNBIND: '解除绑定' }
+  const map = {
+    BIND: '初始绑定',
+    REBIND: '变更绑定',
+    UNBIND: '解除绑定',
+    CHECKOUT: '领用离架',
+    RETURN: '归还上架'
+  }
   return map[type] || type
 }
 
 const getAdjustTagType = (type) => {
-  const map = { BIND: 'success', REBIND: 'warning', UNBIND: 'danger' }
+  const map = {
+    BIND: 'success',
+    REBIND: 'warning',
+    UNBIND: 'danger',
+    CHECKOUT: 'warning',
+    RETURN: 'success'
+  }
   return map[type] || 'info'
 }
 
@@ -214,8 +243,13 @@ onMounted(refreshData)
     &.card-bound {
       background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
     }
+    &.card-borrowed {
+      background: linear-gradient(135deg, #f6a84c 0%, #f5851f 100%);
+      cursor: pointer;
+    }
     &.card-unbound {
       background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+      cursor: pointer;
     }
 
     .stat-icon {

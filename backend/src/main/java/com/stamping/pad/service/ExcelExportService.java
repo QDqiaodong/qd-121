@@ -106,6 +106,8 @@ public class ExcelExportService {
             case "BIND" -> "初始绑定";
             case "REBIND" -> "变更绑定";
             case "UNBIND" -> "解除绑定";
+            case "CHECKOUT" -> "领用离架";
+            case "RETURN" -> "归还上架";
             default -> type;
         };
     }

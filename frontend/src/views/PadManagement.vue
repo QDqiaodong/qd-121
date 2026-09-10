@@ -97,7 +97,13 @@
       </el-table-column>
       <el-table-column label="层位状态" width="180">
         <template #default="{ row }">
-          <template v-if="row.shelfLayerCode">
+          <template v-if="row.borrowStatus === 'BORROWED'">
+            <el-tag type="warning" effect="dark">领用离架中</el-tag>
+            <div style="font-size: 12px; color: #e6a23c; margin-top: 2px">
+              {{ row.borrower }} · {{ row.productionLine }}
+            </div>
+          </template>
+          <template v-else-if="row.shelfLayerCode">
             <el-tag type="success" effect="light">
               {{ row.shelfLayerCode }}
             </el-tag>
@@ -118,12 +124,27 @@
           {{ formatTime(row.createTime) }}
         </template>
       </el-table-column>
-      <el-table-column label="操作" width="260" fixed="right">
+      <el-table-column label="操作" width="320" fixed="right">
         <template #default="{ row }">
+          <el-button
+            v-if="row.shelfLayerCode && row.borrowStatus !== 'BORROWED'"
+            link
+            type="success"
+            size="small"
+            @click="handleCheckout(row)"
+          >
+            领用
+          </el-button>
           <el-button link type="primary" size="small" @click="handleViewRecord(row)">
             调整记录
           </el-button>
-          <el-button link type="primary" size="small" @click="handleBind(row)">
+          <el-button
+            link
+            type="primary"
+            size="small"
+            :disabled="row.borrowStatus === 'BORROWED'"
+            @click="handleBind(row)"
+          >
             {{ row.shelfLayerCode ? '重分配' : '绑定层位' }}
           </el-button>
           <el-button
@@ -131,12 +152,25 @@
             link
             type="warning"
             size="small"
+            :disabled="row.borrowStatus === 'BORROWED'"
             @click="handleUnbind(row)"
           >
             解绑
           </el-button>
-          <el-button link type="primary" size="small" @click="handleEdit(row)">编辑</el-button>
-          <el-button link type="danger" size="small" @click="handleDelete(row)">删除</el-button>
+          <el-button
+            link
+            type="primary"
+            size="small"
+            :disabled="row.borrowStatus === 'BORROWED'"
+            @click="handleEdit(row)"
+          >编辑</el-button>
+          <el-button
+            link
+            type="danger"
+            size="small"
+            :disabled="row.borrowStatus === 'BORROWED'"
+            @click="handleDelete(row)"
+          >删除</el-button>
         </template>
       </el-table-column>
     </el-table>
@@ -433,6 +467,10 @@ const padRecords = ref([])
 
 const router = useRouter()
 const goImport = () => router.push('/pad/import')
+
+const handleCheckout = (row) => {
+  router.push({ path: '/borrow', query: { padId: row.id } })
+}
 
 const formatTime = (time) => (time ? dayjs(time).format('YYYY-MM-DD HH:mm:ss') : '-')
 

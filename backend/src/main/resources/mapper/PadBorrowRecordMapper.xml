@@ -1,0 +1,72 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.stamping.pad.mapper.PadBorrowRecordMapper">
+
+    <resultMap id="BorrowRecordResultMap" type="com.stamping.pad.entity.PadBorrowRecord">
+        <id column="id" property="id"/>
+        <result column="pad_id" property="padId"/>
+        <result column="pad_code" property="padCode"/>
+        <result column="borrower" property="borrower"/>
+        <result column="production_line" property="productionLine"/>
+        <result column="purpose" property="purpose"/>
+        <result column="checkout_time" property="checkoutTime"/>
+        <result column="expected_return_time" property="expectedReturnTime"/>
+        <result column="return_time" property="returnTime"/>
+        <result column="origin_layer_code" property="originLayerCode"/>
+        <result column="return_layer_code" property="returnLayerCode"/>
+        <result column="status" property="status"/>
+        <result column="remark" property="remark"/>
+        <result column="create_time" property="createTime"/>
+        <result column="update_time" property="updateTime"/>
+        <result column="overdue" property="overdue"/>
+        <result column="return_layer_name" property="returnLayerName"/>
+    </resultMap>
+
+    <sql id="baseColumns">
+        r.*,
+        CASE
+            WHEN r.status = 'BORROWED'
+                 AND r.expected_return_time IS NOT NULL
+                 AND r.expected_return_time &lt; NOW()
+            THEN 1 ELSE 0
+        END AS overdue,
+        sl.layer_name AS return_layer_name
+    </sql>
+
+    <select id="selectPageList" resultMap="BorrowRecordResultMap">
+        SELECT <include refid="baseColumns"/>
+        FROM pad_borrow_record r
+        LEFT JOIN shelf_layer sl ON r.return_layer_code = sl.layer_code
+        <where>
+            <if test="query.padCode != null and query.padCode != ''">
+                AND r.pad_code LIKE CONCAT('%', #{query.padCode}, '%')
+            </if>
+            <if test="query.borrower != null and query.borrower != ''">
+                AND r.borrower LIKE CONCAT('%', #{query.borrower}, '%')
+            </if>
+            <if test="query.status == 'OVERDUE'">
+                AND r.status = 'BORROWED'
+                AND r.expected_return_time IS NOT NULL
+                AND r.expected_return_time &lt; NOW()
+            </if>
+            <if test="query.status != null and query.status != '' and query.status != 'OVERDUE'">
+                AND r.status = #{query.status}
+            </if>
+            <if test="query.startTime != null">
+                AND r.checkout_time &gt;= #{query.startTime}
+            </if>
+            <if test="query.endTime != null">
+                AND r.checkout_time &lt;= #{query.endTime}
+            </if>
+        </where>
+        ORDER BY r.checkout_time DESC, r.id DESC
+    </select>
+
+    <select id="selectDetailById" resultMap="BorrowRecordResultMap">
+        SELECT <include refid="baseColumns"/>
+        FROM pad_borrow_record r
+        LEFT JOIN shelf_layer sl ON r.return_layer_code = sl.layer_code
+        WHERE r.id = #{id}
+    </select>
+
+</mapper>

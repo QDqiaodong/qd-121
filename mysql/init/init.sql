@@ -62,7 +62,7 @@ CREATE TABLE IF NOT EXISTS layer_adjust_record (
     pad_code VARCHAR(64) NOT NULL COMMENT '垫板编号',
     old_layer_code VARCHAR(64) DEFAULT NULL COMMENT '原分层编码',
     new_layer_code VARCHAR(64) DEFAULT NULL COMMENT '新分层编码',
-    adjust_type VARCHAR(32) NOT NULL COMMENT '调整类型：BIND-初始绑定、REBIND-变更绑定、UNBIND-解绑',
+    adjust_type VARCHAR(32) NOT NULL COMMENT '调整类型：BIND-初始绑定、REBIND-变更绑定、UNBIND-解绑、CHECKOUT-领用离架、RETURN-归还上架',
     operator VARCHAR(64) DEFAULT NULL COMMENT '操作人',
     adjust_reason VARCHAR(512) DEFAULT NULL COMMENT '调整原因',
     adjust_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '调整时间',
@@ -71,6 +71,34 @@ CREATE TABLE IF NOT EXISTS layer_adjust_record (
     KEY idx_pad_code (pad_code),
     KEY idx_adjust_time (adjust_time)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='层位调整记录表';
+
+-- ------------------------------------------------------------
+-- 4.1 垫板领用归还记录表（幂等）
+-- 领用后垫板从所在层位离架（shelf_layer_code 置空），归还时必须选择未被占用的层位重新上架
+-- ------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS pad_borrow_record (
+    id BIGINT NOT NULL AUTO_INCREMENT COMMENT '主键ID',
+    pad_id BIGINT NOT NULL COMMENT '垫板ID',
+    pad_code VARCHAR(64) NOT NULL COMMENT '垫板编号',
+    borrower VARCHAR(64) NOT NULL COMMENT '领用人',
+    production_line VARCHAR(128) NOT NULL COMMENT '产线/工位',
+    purpose VARCHAR(512) DEFAULT NULL COMMENT '用途',
+    checkout_time DATETIME NOT NULL COMMENT '领用时间',
+    expected_return_time DATETIME DEFAULT NULL COMMENT '预计归还时间',
+    return_time DATETIME DEFAULT NULL COMMENT '实际归还时间',
+    origin_layer_code VARCHAR(64) DEFAULT NULL COMMENT '领用时所在层位（原层位）',
+    return_layer_code VARCHAR(64) DEFAULT NULL COMMENT '归还层位',
+    status VARCHAR(16) NOT NULL DEFAULT 'BORROWED' COMMENT '状态：BORROWED-领用中、RETURNED-已归还',
+    remark VARCHAR(512) DEFAULT NULL COMMENT '备注',
+    create_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    update_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    PRIMARY KEY (id),
+    KEY idx_pbr_pad_id (pad_id),
+    KEY idx_pbr_pad_code (pad_code),
+    KEY idx_pbr_status (status),
+    KEY idx_pbr_checkout_time (checkout_time),
+    KEY idx_pbr_return_time (return_time)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='垫板领用归还记录表';
 
 -- ------------------------------------------------------------
 -- 5. 预置货架分层数据（幂等，INSERT IGNORE）

@@ -26,6 +26,12 @@ const routes = [
     meta: { title: '货架层位管理' }
   },
   {
+    path: '/borrow',
+    name: 'BorrowReturn',
+    component: () => import('@/views/BorrowReturn.vue'),
+    meta: { title: '垫板领用归还' }
+  },
+  {
     path: '/record',
     name: 'AdjustRecord',
     component: () => import('@/views/AdjustRecord.vue'),

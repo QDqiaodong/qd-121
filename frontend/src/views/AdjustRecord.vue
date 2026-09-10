@@ -29,6 +29,8 @@
             <el-option label="初始绑定" value="BIND" />
             <el-option label="变更绑定" value="REBIND" />
             <el-option label="解除绑定" value="UNBIND" />
+            <el-option label="领用离架" value="CHECKOUT" />
+            <el-option label="归还上架" value="RETURN" />
           </el-select>
         </el-form-item>
         <el-form-item label="调整时间">
@@ -110,7 +112,9 @@ import {
   RefreshRight,
   Warning,
   Close,
-  Right
+  Right,
+  Promotion,
+  Van
 } from '@element-plus/icons-vue'
 import { exportRecords, getRecordPage } from '@/api/record'
 import { downloadBlob, getFileNameFromDisposition } from '@/utils/download'
@@ -134,17 +138,35 @@ const pagination = reactive({
 const formatTime = (time) => (time ? dayjs(time).format('YYYY-MM-DD HH:mm:ss') : '-')
 
 const getAdjustTypeLabel = (type) => {
-  const map = { BIND: '初始绑定', REBIND: '变更绑定', UNBIND: '解除绑定' }
+  const map = {
+    BIND: '初始绑定',
+    REBIND: '变更绑定',
+    UNBIND: '解除绑定',
+    CHECKOUT: '领用离架',
+    RETURN: '归还上架'
+  }
   return map[type] || type
 }
 
 const getAdjustTagType = (type) => {
-  const map = { BIND: 'success', REBIND: 'warning', UNBIND: 'danger' }
+  const map = {
+    BIND: 'success',
+    REBIND: 'warning',
+    UNBIND: 'danger',
+    CHECKOUT: 'warning',
+    RETURN: 'success'
+  }
   return map[type] || 'info'
 }
 
 const getAdjustIcon = (type) => {
-  const map = { BIND: CircleCheck, REBIND: RefreshRight, UNBIND: Close }
+  const map = {
+    BIND: CircleCheck,
+    REBIND: RefreshRight,
+    UNBIND: Close,
+    CHECKOUT: Promotion,
+    RETURN: Van
+  }
   return map[type] || Warning
 }
 

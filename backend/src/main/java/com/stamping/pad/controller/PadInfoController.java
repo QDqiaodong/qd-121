@@ -10,6 +10,7 @@ import com.stamping.pad.entity.LayerAdjustRecord;
 import com.stamping.pad.entity.PadInfo;
 import com.stamping.pad.service.ExcelExportService;
 import com.stamping.pad.service.LayerAdjustRecordService;
+import com.stamping.pad.service.PadBorrowService;
 import com.stamping.pad.service.PadInfoService;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
@@ -29,6 +30,7 @@ public class PadInfoController {
     private final PadInfoService padInfoService;
     private final ExcelExportService excelExportService;
     private final LayerAdjustRecordService recordService;
+    private final PadBorrowService padBorrowService;
 
     @GetMapping("/page")
     public Result<Page<PadInfo>> page(PadQueryDTO query) {
@@ -99,6 +101,7 @@ public class PadInfoController {
         stats.put("totalCount", padInfoService.countTotal());
         stats.put("unboundCount", padInfoService.countUnbound());
         stats.put("boundCount", padInfoService.countTotal() - padInfoService.countUnbound());
+        stats.putAll(padBorrowService.statistics());
         return Result.success(stats);
     }
 }

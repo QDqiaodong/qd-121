@@ -8,9 +8,11 @@ import com.stamping.pad.dto.PadInfoDTO;
 import com.stamping.pad.dto.PadQueryDTO;
 import com.stamping.pad.dto.UnbindLayerDTO;
 import com.stamping.pad.entity.LayerAdjustRecord;
+import com.stamping.pad.entity.PadBorrowRecord;
 import com.stamping.pad.entity.PadInfo;
 import com.stamping.pad.entity.ShelfLayer;
 import com.stamping.pad.mapper.LayerAdjustRecordMapper;
+import com.stamping.pad.mapper.PadBorrowRecordMapper;
 import com.stamping.pad.mapper.PadInfoMapper;
 import com.stamping.pad.mapper.ShelfLayerMapper;
 import lombok.RequiredArgsConstructor;
@@ -29,6 +31,18 @@ public class PadInfoService {
     private final PadInfoMapper padInfoMapper;
     private final ShelfLayerMapper shelfLayerMapper;
     private final LayerAdjustRecordMapper recordMapper;
+    private final PadBorrowRecordMapper borrowRecordMapper;
+
+    /** 领用中的垫板已离架，层位调整需在归还后进行，防止在架状态与领用闭环冲突 */
+    private void assertNotBorrowed(Long padId) {
+        Long count = borrowRecordMapper.selectCount(
+                new LambdaQueryWrapper<PadBorrowRecord>()
+                        .eq(PadBorrowRecord::getPadId, padId)
+                        .eq(PadBorrowRecord::getStatus, "BORROWED"));
+        if (count > 0) {
+            throw new RuntimeException("垫板领用中（已离架），请先归还后再操作层位");
+        }
+    }
 
     public Page<PadInfo> pageList(PadQueryDTO query) {
         Page<PadInfo> page = new Page<>(query.getPageNum(), query.getPageSize());
@@ -106,6 +120,9 @@ public class PadInfoService {
         String oldLayerCode = normalizeLayerCode(existing.getShelfLayerCode());
         String newLayerCode = normalizeLayerCode(dto.getShelfLayerCode());
         boolean layerChanged = !Objects.equals(oldLayerCode, newLayerCode);
+        if (layerChanged) {
+            assertNotBorrowed(existing.getId());
+        }
         String adjustType = null;
 
         if (layerChanged) {
@@ -161,6 +178,7 @@ public class PadInfoService {
         if (padInfo == null) {
             throw new RuntimeException("垫板不存在");
         }
+        assertNotBorrowed(id);
         if (padInfo.getShelfLayerCode() != null && !padInfo.getShelfLayerCode().isEmpty()) {
             throw new RuntimeException("请先解绑货架分层后再删除垫板");
         }
@@ -173,6 +191,7 @@ public class PadInfoService {
         if (padInfo == null) {
             throw new RuntimeException("垫板不存在");
         }
+        assertNotBorrowed(padInfo.getId());
 
         ShelfLayer layer = shelfLayerMapper.selectByLayerCode(dto.getLayerCode());
         if (layer == null) {
@@ -213,6 +232,7 @@ public class PadInfoService {
         if (padInfo == null) {
             throw new RuntimeException("垫板不存在");
         }
+        assertNotBorrowed(padInfo.getId());
 
         String oldLayerCode = padInfo.getShelfLayerCode();
         if (oldLayerCode == null || oldLayerCode.isEmpty()) {

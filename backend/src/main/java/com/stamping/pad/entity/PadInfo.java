@@ -43,4 +43,16 @@ public class PadInfo {
 
     @TableField(exist = false)
     private String shelfCode;
+
+    @TableField(exist = false)
+    private String borrowStatus;
+
+    @TableField(exist = false)
+    private String borrower;
+
+    @TableField(exist = false)
+    private String productionLine;
+
+    @TableField(exist = false)
+    private LocalDateTime checkoutTime;
 }

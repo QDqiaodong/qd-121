@@ -17,12 +17,19 @@
         <result column="remark" property="remark"/>
         <result column="layer_name" property="layerName"/>
         <result column="shelf_code" property="shelfCode"/>
+        <result column="borrow_status" property="borrowStatus"/>
+        <result column="borrower" property="borrower"/>
+        <result column="production_line" property="productionLine"/>
+        <result column="checkout_time_borrow" property="checkoutTime"/>
     </resultMap>
 
     <select id="selectPageList" resultMap="PadInfoResultMap">
-        SELECT p.*, sl.layer_name, sl.shelf_code
+        SELECT p.*, sl.layer_name, sl.shelf_code,
+               br.status AS borrow_status, br.borrower, br.production_line,
+               br.checkout_time AS checkout_time_borrow
         FROM pad_info p
         LEFT JOIN shelf_layer sl ON p.shelf_layer_code = sl.layer_code
+        LEFT JOIN pad_borrow_record br ON br.pad_id = p.id AND br.status = 'BORROWED'
         <where>
             <if test="query.padCode != null and query.padCode != ''">
                 AND p.pad_code LIKE CONCAT('%', #{query.padCode}, '%')
@@ -41,18 +48,24 @@
     </select>
 
     <select id="selectByLayerCode" resultMap="PadInfoResultMap">
-        SELECT p.*, sl.layer_name, sl.shelf_code
+        SELECT p.*, sl.layer_name, sl.shelf_code,
+               br.status AS borrow_status, br.borrower, br.production_line,
+               br.checkout_time AS checkout_time_borrow
         FROM pad_info p
         LEFT JOIN shelf_layer sl ON p.shelf_layer_code = sl.layer_code
+        LEFT JOIN pad_borrow_record br ON br.pad_id = p.id AND br.status = 'BORROWED'
         WHERE p.shelf_layer_code = #{layerCode}
         ORDER BY p.pad_code ASC
     </select>
 
     <select id="selectByShelfCode" resultMap="PadInfoResultMap">
-        SELECT p.*, sl.layer_name, sl.shelf_code
+        SELECT p.*, sl.layer_name, sl.shelf_code,
+               br.status AS borrow_status, br.borrower, br.production_line,
+               br.checkout_time AS checkout_time_borrow
         FROM pad_info p
         LEFT JOIN shelf_layer sl ON p.shelf_layer_code = sl.layer_code
-        WHERE sl.shelf_code = #{shelfCode}
+        LEFT JOIN pad_borrow_record br ON br.pad_id = p.id AND br.status = 'BORROWED'
+        WHERE sl.shelf_code = #{query.shelfCode}
         ORDER BY p.pad_code ASC
     </select>
 
