@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.stamping.pad.mapper.PadInventorySheetMapper">
+
+    <resultMap id="InventorySheetResultMap" type="com.stamping.pad.entity.PadInventorySheet">
+        <id column="id" property="id"/>
+        <result column="sheet_no" property="sheetNo"/>
+        <result column="scope_type" property="scopeType"/>
+        <result column="shelf_code" property="shelfCode"/>
+        <result column="layer_code" property="layerCode"/>
+        <result column="covered_layers" property="coveredLayers"/>
+        <result column="shift" property="shift"/>
+        <result column="inspector" property="inspector"/>
+        <result column="status" property="status"/>
+        <result column="start_time" property="startTime"/>
+        <result column="submit_time" property="submitTime"/>
+        <result column="remark" property="remark"/>
+        <result column="create_time" property="createTime"/>
+        <result column="update_time" property="updateTime"/>
+        <result column="total_count" property="totalCount"/>
+        <result column="match_count" property="matchCount"/>
+        <result column="missing_count" property="missingCount"/>
+        <result column="extra_count" property="extraCount"/>
+        <result column="marked_count" property="markedCount"/>
+    </resultMap>
+
+    <select id="selectPageList" resultMap="InventorySheetResultMap">
+        SELECT s.*,
+               COUNT(i.id) AS total_count,
+               SUM(CASE WHEN i.check_result = 'MATCH' THEN 1 ELSE 0 END) AS match_count,
+               SUM(CASE WHEN i.check_result = 'MISSING' THEN 1 ELSE 0 END) AS missing_count,
+               SUM(CASE WHEN i.item_type = 'EXTRA' THEN 1 ELSE 0 END) AS extra_count,
+               SUM(CASE WHEN i.item_type = 'LEDGER' AND i.check_result IS NOT NULL THEN 1 ELSE 0 END) AS marked_count
+        FROM pad_inventory_sheet s
+        LEFT JOIN pad_inventory_item i ON i.sheet_id = s.id
+        <where>
+            <if test="query.status != null and query.status != ''">
+                AND s.status = #{query.status}
+            </if>
+            <if test="query.shift != null and query.shift != ''">
+                AND s.shift = #{query.shift}
+            </if>
+            <if test="query.shelfCode != null and query.shelfCode != ''">
+                AND s.shelf_code = #{query.shelfCode}
+            </if>
+            <if test="query.layerCode != null and query.layerCode != ''">
+                AND s.layer_code = #{query.layerCode}
+            </if>
+            <if test="query.sheetNo != null and query.sheetNo != ''">
+                AND s.sheet_no LIKE CONCAT('%', #{query.sheetNo}, '%')
+            </if>
+            <if test="query.startTime != null">
+                AND s.start_time &gt;= #{query.startTime}
+            </if>
+            <if test="query.endTime != null">
+                AND s.start_time &lt;= #{query.endTime}
+            </if>
+        </where>
+        GROUP BY s.id
+        ORDER BY s.create_time DESC, s.id DESC
+    </select>
+
+    <select id="selectInProgress" resultMap="InventorySheetResultMap">
+        SELECT * FROM pad_inventory_sheet WHERE status = 'IN_PROGRESS'
+    </select>
+
+</mapper>
