@@ -168,7 +168,17 @@
           <el-button link type="primary" size="small" @click="handleViewRecord(row)">
             调整记录
           </el-button>
+          <el-tooltip
+            v-if="row.borrowStatus !== 'BORROWED' && !isPadAvailable(row)"
+            content="待检/停用垫板不可上架，请先在保养台账恢复为可用"
+            placement="top"
+          >
+            <el-button link type="primary" size="small" disabled>
+              {{ row.shelfLayerCode ? '重分配' : '绑定层位' }}
+            </el-button>
+          </el-tooltip>
           <el-button
+            v-else
             link
             type="primary"
             size="small"
@@ -305,9 +315,12 @@
                   :key="layer.layerCode"
                   :label="layer.layerCode + ' - ' + layer.layerName + layerCapacityLabel(layer)"
                   :value="layer.layerCode"
-                  :disabled="isLayerFull(layer) && layer.layerCode !== formData.shelfLayerCode"
+                  :disabled="(isLayerFull(layer) && layer.layerCode !== formData.shelfLayerCode) || (isEdit && !isPadAvailable(formData))"
                 />
               </el-select>
+              <div v-if="isEdit && !isPadAvailable(formData)" class="form-tip">
+                待检/停用垫板不可上架，请先在保养台账恢复为可用（可清空层位完成解绑）
+              </div>
             </el-form-item>
           </el-col>
         </el-row>
@@ -659,6 +672,11 @@ const handleDialogClosed = () => {
 
 const handleSubmit = async () => {
   await formRef.value?.validate()
+  // 待检/停用垫板不可上架（允许清空层位解绑），后端同样二次校验
+  if (isEdit.value && !isPadAvailable(formData) && formData.shelfLayerCode) {
+    ElMessage.warning('待检/停用垫板不可上架，请先在保养台账恢复为可用')
+    return
+  }
   try {
     if (isEdit.value) {
       await updatePad({ ...formData })
@@ -799,6 +817,13 @@ onMounted(() => {
   margin-top: 20px;
   display: flex;
   justify-content: flex-end;
+}
+
+.form-tip {
+  margin-top: 4px;
+  font-size: 12px;
+  color: #e6a23c;
+  line-height: 1.4;
 }
 
 .image-uploader {

@@ -42,6 +42,17 @@ public class PadInfoService {
         }
     }
 
+    /** 待检/停用垫板不允许上架（绑定/换绑/编辑换层），登记保养时已自动离架，须先恢复为可用 */
+    private void assertPadBindable(PadInfo pad) {
+        String status = pad.getMaintenanceStatus();
+        if ("PENDING".equals(status)) {
+            throw new RuntimeException("垫板【" + pad.getPadCode() + "】处于待检状态，不可上架，请先在保养台账恢复为可用");
+        }
+        if ("DISABLED".equals(status)) {
+            throw new RuntimeException("垫板【" + pad.getPadCode() + "】已停用，不可上架，请先在保养台账恢复为可用");
+        }
+    }
+
     public Page<PadInfo> pageList(PadQueryDTO query) {
         Page<PadInfo> page = new Page<>(query.getPageNum(), query.getPageSize());
         return padInfoMapper.selectPageList(page, query);
@@ -145,6 +156,8 @@ public class PadInfoService {
 
         if (layerChanged) {
             if (newLayerCode != null) {
+                // 待检/停用垫板不可上架
+                assertPadBindable(existing);
                 // 换绑/新绑目标层位须存在且占用未达配额
                 shelfLayerService.lockAndAssertCapacity(newLayerCode);
             }
@@ -211,6 +224,7 @@ public class PadInfoService {
             throw new RuntimeException("垫板不存在");
         }
         assertNotBorrowed(padInfo.getId());
+        assertPadBindable(padInfo);
 
         String oldLayerCode = padInfo.getShelfLayerCode();
         String adjustType;

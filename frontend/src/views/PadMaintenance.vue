@@ -171,6 +171,9 @@
           <span v-if="selectedPad.borrowStatus === 'BORROWED'" class="form-tip warning">
             该垫板领用离架中，仍可登记保养并更新状态
           </span>
+          <span v-else-if="willAutoOffShelf" class="form-tip warning">
+            当前在架 {{ selectedPad.shelfLayerCode }}，登记为{{ getStatusLabel(registerForm.statusAfter) }}后将自动离架
+          </span>
         </el-form-item>
         <el-row :gutter="12">
           <el-col :span="12">
@@ -225,7 +228,7 @@
             <el-radio value="PENDING">待检</el-radio>
             <el-radio value="DISABLED">停用</el-radio>
           </el-radio-group>
-          <div class="form-tip">待检/停用垫板将被禁止领用，归还时也无法选择为目标</div>
+          <div class="form-tip">待检/停用垫板将被禁止领用，归还时也无法选择为目标；在架垫板登记后自动离架，不再占用层位配额</div>
         </el-form-item>
         <el-form-item label="备注">
           <el-input
@@ -450,6 +453,13 @@ const registerRules = {
 
 const selectedPad = computed(() => allPads.value.find((p) => p.id === registerForm.padId))
 
+// 在架垫板登记为待检/停用时后端会自动离架，提前在表单中提示
+const willAutoOffShelf = computed(() => {
+  const pad = selectedPad.value
+  if (!pad || !pad.shelfLayerCode) return false
+  return registerForm.statusAfter === 'PENDING' || registerForm.statusAfter === 'DISABLED'
+})
+
 const padOptionLabel = (pad) => {
   const status = getStatusLabel(pad.maintenanceStatus)
   return `${pad.padCode}（${pad.moldType || '无模具'} / ${status}）`
@@ -497,6 +507,7 @@ const handlePadChange = (padId) => {
 const submitRegister = async () => {
   await registerFormRef.value?.validate()
   submitting.value = true
+  const autoOffShelf = willAutoOffShelf.value
   try {
     await registerMaintenance({
       padId: registerForm.padId,
@@ -507,7 +518,7 @@ const submitRegister = async () => {
       statusAfter: registerForm.statusAfter,
       remark: registerForm.remark || null
     })
-    ElMessage.success('保养登记成功，垫板状态已更新')
+    ElMessage.success(autoOffShelf ? '保养登记成功，垫板已自动离架' : '保养登记成功，垫板状态已更新')
     registerVisible.value = false
     loadData()
     loadStats()
