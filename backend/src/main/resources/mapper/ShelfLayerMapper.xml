@@ -8,6 +8,7 @@
         <result column="shelf_code" property="shelfCode"/>
         <result column="layer_name" property="layerName"/>
         <result column="layer_order" property="layerOrder"/>
+        <result column="capacity" property="capacity"/>
         <result column="create_time" property="createTime"/>
         <result column="update_time" property="updateTime"/>
         <result column="remark" property="remark"/>
@@ -28,6 +29,15 @@
         LEFT JOIN pad_info p ON sl.layer_code = p.shelf_layer_code
         WHERE sl.layer_code = #{layerCode}
         GROUP BY sl.id, sl.layer_code, sl.shelf_code, sl.layer_name, sl.layer_order
+    </select>
+
+    <!-- 容量校验前的行锁：串行化同一层位的上架操作，防止并发超配额 -->
+    <select id="lockByLayerCode" resultMap="ShelfLayerResultMap">
+        SELECT sl.id, sl.layer_code, sl.shelf_code, sl.layer_name, sl.layer_order,
+               sl.capacity, sl.create_time, sl.update_time, sl.remark
+        FROM shelf_layer sl
+        WHERE sl.layer_code = #{layerCode}
+        FOR UPDATE
     </select>
 
 </mapper>

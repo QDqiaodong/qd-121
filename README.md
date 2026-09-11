@@ -64,6 +64,14 @@ docker compose ps
 - 详情：展示垫板档案、最近一次保养、完整状态变更时间线与全部保养记录。
 - 一致性：状态落库在 `pad_info.maintenance_status`，刷新后垫板档案、领用归还页与保养台账三处状态保持一致；档案页支持按保养状态筛选并提供“保养”快捷入口。
 
+## 货架层位容量配额
+
+- 配额维护：每层在 `shelf_layer.capacity` 维护容量配额（新建分层默认 10），层位编辑弹窗可调整；**下调配额不得低于当前在架数**，后端二次校验。
+- 上架约束：层位绑定、换绑（重分配）、新建档案带层位、归还上架、批量导入均不得让该层超过配额；校验在事务内对层位行加锁（`SELECT ... FOR UPDATE`），防止并发超配额。
+- 归还目标：已满层位（占用数 ≥ 配额，含配额为 0 的层位）不能作为归还目标，归还弹窗禁用并标注，后端二次校验。
+- 展示：层位页卡片与数据概览按 `在架数/配额` 展示占用进度（空闲/有余量/将满/已满），档案绑定与归还层位下拉同步显示占用并禁用已满层位。
+- 一致性：层位占用数始终由 `pad_info.shelf_layer_code` 实时统计，刷新后档案绑定、层位占用与调整记录保持一致。
+
 ## 数据库迁移
 
 全新部署由 `mysql/init/init.sql` 自动建表。已有部署升级到领用归还功能时，对存量库执行一次幂等迁移：
@@ -76,6 +84,12 @@ mysql -h127.0.0.1 -P3421 -u pad_user -p pad_stamping < mysql/migration/V2__pad_b
 
 ```bash
 mysql -h127.0.0.1 -P3421 -u pad_user -p pad_stamping < mysql/migration/V3__pad_maintenance.sql
+```
+
+升级到层位容量配额功能时，再执行一次幂等迁移（新增 `shelf_layer.capacity` 列，存量层位默认配额 10）：
+
+```bash
+mysql -h127.0.0.1 -P3421 -u pad_user -p pad_stamping < mysql/migration/V4__shelf_layer_capacity.sql
 ```
 
 ## 常见问题

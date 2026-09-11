@@ -23,6 +23,7 @@ CREATE TABLE IF NOT EXISTS shelf_layer (
     shelf_code VARCHAR(64) NOT NULL COMMENT '货架编码',
     layer_name VARCHAR(128) DEFAULT NULL COMMENT '分层名称',
     layer_order INT DEFAULT 0 COMMENT '层序号',
+    capacity INT NOT NULL DEFAULT 10 COMMENT '容量配额：该层最多可存放的在架垫板数',
     create_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
     update_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '更新时间',
     remark VARCHAR(512) DEFAULT NULL COMMENT '备注',

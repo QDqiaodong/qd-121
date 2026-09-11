@@ -70,12 +70,15 @@
                       <div class="layer-count">
                         <el-progress
                           type="dashboard"
-                          :percentage="Math.min((layer.padCount / 50) * 100, 100)"
+                          :percentage="getUsagePercent(layer)"
                           :width="50"
                           :stroke-width="8"
                           :show-text="false"
+                          :status="getUsageStatus(layer)"
                         />
-                        <span class="count-num">{{ layer.padCount }}块</span>
+                        <span class="count-num" :class="{ 'count-full': isLayerFull(layer) }">
+                          {{ layer.padCount }}/{{ layer.capacity ?? 0 }}
+                        </span>
                       </div>
                     </div>
                   </div>
@@ -174,6 +177,22 @@ const groupByShelf = (layers) => {
   })
   return Object.values(map)
 }
+
+// 层位占用按容量配额计算百分比，已满层位标红提示
+const getUsagePercent = (layer) => {
+  const capacity = layer.capacity || 0
+  if (capacity <= 0) return (layer.padCount || 0) > 0 ? 100 : 0
+  return Math.min(Math.round(((layer.padCount || 0) / capacity) * 100), 100)
+}
+
+const getUsageStatus = (layer) => {
+  const percent = getUsagePercent(layer)
+  if (percent >= 100) return 'exception'
+  if (percent >= 80) return 'warning'
+  return 'success'
+}
+
+const isLayerFull = (layer) => getUsagePercent(layer) >= 100
 
 const loadStatistics = async () => {
   try {
@@ -334,6 +353,10 @@ onMounted(refreshData)
               font-size: 13px;
               font-weight: 600;
               color: #606266;
+
+              &.count-full {
+                color: #f56c6c;
+              }
             }
           }
         }

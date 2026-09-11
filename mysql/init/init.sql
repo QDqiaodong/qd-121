@@ -47,6 +47,7 @@ CREATE TABLE IF NOT EXISTS shelf_layer (
     shelf_code VARCHAR(64) NOT NULL COMMENT '货架编码',
     layer_name VARCHAR(128) DEFAULT NULL COMMENT '分层名称',
     layer_order INT DEFAULT 0 COMMENT '层序号',
+    capacity INT NOT NULL DEFAULT 10 COMMENT '容量配额：该层最多可存放的在架垫板数',
     create_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
     update_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
     remark VARCHAR(512) DEFAULT NULL COMMENT '备注',
@@ -128,20 +129,21 @@ CREATE TABLE IF NOT EXISTS pad_maintenance_record (
 
 -- ------------------------------------------------------------
 -- 5. 预置货架分层数据（幂等，INSERT IGNORE）
+-- capacity 为层位容量配额：绑定/换绑/建档/归还/导入均不得让该层超过配额
 -- ------------------------------------------------------------
-INSERT IGNORE INTO shelf_layer (layer_code, shelf_code, layer_name, layer_order, remark) VALUES
-    ('A-01-01', 'A-01', 'A区01货架第1层', 1, '重型垫板存放区'),
-    ('A-01-02', 'A-01', 'A区01货架第2层', 2, '重型垫板存放区'),
-    ('A-01-03', 'A-01', 'A区01货架第3层', 3, '重型垫板存放区'),
-    ('A-02-01', 'A-02', 'A区02货架第1层', 1, '中型垫板存放区'),
-    ('A-02-02', 'A-02', 'A区02货架第2层', 2, '中型垫板存放区'),
-    ('A-02-03', 'A-02', 'A区02货架第3层', 3, '中型垫板存放区'),
-    ('B-01-01', 'B-01', 'B区01货架第1层', 1, '轻型垫板存放区'),
-    ('B-01-02', 'B-01', 'B区01货架第2层', 2, '轻型垫板存放区'),
-    ('B-01-03', 'B-01', 'B区01货架第3层', 3, '轻型垫板存放区'),
-    ('B-02-01', 'B-02', 'B区02货架第1层', 1, '特殊规格存放区'),
-    ('B-02-02', 'B-02', 'B区02货架第2层', 2, '特殊规格存放区'),
-    ('B-02-03', 'B-02', 'B区02货架第3层', 3, '特殊规格存放区');
+INSERT IGNORE INTO shelf_layer (layer_code, shelf_code, layer_name, layer_order, capacity, remark) VALUES
+    ('A-01-01', 'A-01', 'A区01货架第1层', 1, 20, '重型垫板存放区'),
+    ('A-01-02', 'A-01', 'A区01货架第2层', 2, 20, '重型垫板存放区'),
+    ('A-01-03', 'A-01', 'A区01货架第3层', 3, 20, '重型垫板存放区'),
+    ('A-02-01', 'A-02', 'A区02货架第1层', 1, 15, '中型垫板存放区'),
+    ('A-02-02', 'A-02', 'A区02货架第2层', 2, 15, '中型垫板存放区'),
+    ('A-02-03', 'A-02', 'A区02货架第3层', 3, 15, '中型垫板存放区'),
+    ('B-01-01', 'B-01', 'B区01货架第1层', 1, 10, '轻型垫板存放区'),
+    ('B-01-02', 'B-01', 'B区01货架第2层', 2, 10, '轻型垫板存放区'),
+    ('B-01-03', 'B-01', 'B区01货架第3层', 3, 10, '轻型垫板存放区'),
+    ('B-02-01', 'B-02', 'B区02货架第1层', 1, 5, '特殊规格存放区'),
+    ('B-02-02', 'B-02', 'B区02货架第2层', 2, 5, '特殊规格存放区'),
+    ('B-02-03', 'B-02', 'B区02货架第3层', 3, 5, '特殊规格存放区');
 
 -- ------------------------------------------------------------
 -- 6. 给数据库用户授权（幂等）

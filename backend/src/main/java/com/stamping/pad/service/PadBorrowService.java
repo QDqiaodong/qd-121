@@ -39,6 +39,7 @@ public class PadBorrowService {
     private final PadInfoMapper padInfoMapper;
     private final ShelfLayerMapper shelfLayerMapper;
     private final LayerAdjustRecordMapper recordMapper;
+    private final ShelfLayerService shelfLayerService;
 
     public Page<PadBorrowRecord> pageList(BorrowRecordQueryDTO query) {
         Page<PadBorrowRecord> page = new Page<>(query.getPageNum(), query.getPageSize());
@@ -137,10 +138,8 @@ public class PadBorrowService {
         if (returnLayerCode == null || returnLayerCode.isEmpty()) {
             throw new RuntimeException("归还层位不能为空");
         }
-        ShelfLayer layer = shelfLayerMapper.selectByLayerCode(returnLayerCode);
-        if (layer == null) {
-            throw new RuntimeException("归还层位不存在");
-        }
+        // 归还层位须存在且未满（容量配额为 0 的层位同样不可作为归还目标）
+        shelfLayerService.lockAndAssertCapacity(returnLayerCode);
         // 归还层位必须可用：层位上不存在任何在架垫板
         List<PadInfo> occupied = padInfoMapper.selectByLayerCode(returnLayerCode);
         if (!occupied.isEmpty()) {
@@ -188,7 +187,7 @@ public class PadBorrowService {
         }
     }
 
-    /** 可归还层位：返回全部层位及其当前占用数量，前端按 padCount=0 放行选择 */
+    /** 可归还层位：返回全部层位及其容量配额与当前占用数，前端按占用/配额放行选择，后端归还时二次校验 */
     public List<ShelfLayer> listAvailableReturnLayers() {
         return shelfLayerMapper.selectAllWithCount();
     }

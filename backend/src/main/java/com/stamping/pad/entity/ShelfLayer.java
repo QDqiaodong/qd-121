@@ -24,6 +24,9 @@ public class ShelfLayer {
 
     private Integer layerOrder;
 
+    /** 层位容量配额：该层最多可存放的在架垫板数 */
+    private Integer capacity;
+
     private LocalDateTime createTime;
 
     private LocalDateTime updateTime;

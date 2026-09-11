@@ -11,4 +11,7 @@ public interface ShelfLayerMapper extends BaseMapper<ShelfLayer> {
     List<ShelfLayer> selectAllWithCount();
 
     ShelfLayer selectByLayerCode(@Param("layerCode") String layerCode);
+
+    /** 按分层编码行锁查询（SELECT ... FOR UPDATE），须在事务内调用 */
+    ShelfLayer lockByLayerCode(@Param("layerCode") String layerCode);
 }

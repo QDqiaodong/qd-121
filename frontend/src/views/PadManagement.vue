@@ -303,8 +303,9 @@
                 <el-option
                   v-for="layer in layerOptions"
                   :key="layer.layerCode"
-                  :label="layer.layerCode + ' - ' + layer.layerName"
+                  :label="layer.layerCode + ' - ' + layer.layerName + layerCapacityLabel(layer)"
                   :value="layer.layerCode"
+                  :disabled="isLayerFull(layer) && layer.layerCode !== formData.shelfLayerCode"
                 />
               </el-select>
             </el-form-item>
@@ -371,8 +372,9 @@
             <el-option
               v-for="layer in layerOptions"
               :key="layer.layerCode"
-              :label="layer.layerCode + ' - ' + layer.layerName + '（已存' + layer.padCount + '块）'"
+              :label="layer.layerCode + ' - ' + layer.layerName + layerCapacityLabel(layer)"
               :value="layer.layerCode"
+              :disabled="isLayerFull(layer) && layer.layerCode !== currentPad?.shelfLayerCode"
             />
           </el-select>
         </el-form-item>
@@ -536,6 +538,14 @@ const handleMaintenance = (row) => {
 
 const formatTime = (time) => (time ? dayjs(time).format('YYYY-MM-DD HH:mm:ss') : '-')
 
+// 层位容量：达到配额视为已满，不可再作为绑定/建档目标（当前已绑定层位除外，便于编辑时保留原值）
+const isLayerFull = (layer) => (layer.padCount || 0) >= (layer.capacity ?? 0)
+const layerCapacityLabel = (layer) => {
+  const used = layer.padCount || 0
+  const capacity = layer.capacity ?? 0
+  return isLayerFull(layer) ? `（已满 ${used}/${capacity}）` : `（占用 ${used}/${capacity}）`
+}
+
 const getAdjustTypeLabel = (type) => {
   const map = { BIND: '初始绑定', REBIND: '变更绑定', UNBIND: '解除绑定' }
   return map[type] || type
@@ -630,6 +640,7 @@ const handleAdd = () => {
     remark: ''
   })
   selectedSpec.value = ''
+  loadLayers()
   dialogVisible.value = true
 }
 
@@ -638,6 +649,7 @@ const handleEdit = (row) => {
   dialogTitle.value = '编辑垫板档案'
   Object.assign(formData, JSON.parse(JSON.stringify(row)))
   selectedSpec.value = ''
+  loadLayers()
   dialogVisible.value = true
 }
 
@@ -686,6 +698,7 @@ const handleBind = (row) => {
     operator: '',
     adjustReason: ''
   })
+  loadLayers()
   bindDialogVisible.value = true
 }
 

@@ -10,11 +10,9 @@ import com.stamping.pad.dto.UnbindLayerDTO;
 import com.stamping.pad.entity.LayerAdjustRecord;
 import com.stamping.pad.entity.PadBorrowRecord;
 import com.stamping.pad.entity.PadInfo;
-import com.stamping.pad.entity.ShelfLayer;
 import com.stamping.pad.mapper.LayerAdjustRecordMapper;
 import com.stamping.pad.mapper.PadBorrowRecordMapper;
 import com.stamping.pad.mapper.PadInfoMapper;
-import com.stamping.pad.mapper.ShelfLayerMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.BeanUtils;
 import org.springframework.stereotype.Service;
@@ -29,9 +27,9 @@ import java.util.Objects;
 public class PadInfoService {
 
     private final PadInfoMapper padInfoMapper;
-    private final ShelfLayerMapper shelfLayerMapper;
     private final LayerAdjustRecordMapper recordMapper;
     private final PadBorrowRecordMapper borrowRecordMapper;
+    private final ShelfLayerService shelfLayerService;
 
     /** 领用中的垫板已离架，层位调整需在归还后进行，防止在架状态与领用闭环冲突 */
     private void assertNotBorrowed(Long padId) {
@@ -98,10 +96,8 @@ public class PadInfoService {
         padInfo.setUpdateTime(LocalDateTime.now());
 
         if (dto.getShelfLayerCode() != null && !dto.getShelfLayerCode().isEmpty()) {
-            ShelfLayer layer = shelfLayerMapper.selectByLayerCode(dto.getShelfLayerCode());
-            if (layer == null) {
-                throw new RuntimeException("货架分层不存在");
-            }
+            // 建档即上架：层位须存在且占用未达配额
+            shelfLayerService.lockAndAssertCapacity(dto.getShelfLayerCode());
             padInfo.setBindTime(LocalDateTime.now());
             padInfoMapper.insert(padInfo);
 
@@ -148,8 +144,9 @@ public class PadInfoService {
         String adjustType = null;
 
         if (layerChanged) {
-            if (newLayerCode != null && shelfLayerMapper.selectByLayerCode(newLayerCode) == null) {
-                throw new RuntimeException("货架分层不存在");
+            if (newLayerCode != null) {
+                // 换绑/新绑目标层位须存在且占用未达配额
+                shelfLayerService.lockAndAssertCapacity(newLayerCode);
             }
             if (oldLayerCode == null) {
                 adjustType = "BIND";
@@ -215,11 +212,6 @@ public class PadInfoService {
         }
         assertNotBorrowed(padInfo.getId());
 
-        ShelfLayer layer = shelfLayerMapper.selectByLayerCode(dto.getLayerCode());
-        if (layer == null) {
-            throw new RuntimeException("货架分层不存在");
-        }
-
         String oldLayerCode = padInfo.getShelfLayerCode();
         String adjustType;
 
@@ -230,6 +222,9 @@ public class PadInfoService {
         } else {
             adjustType = "REBIND";
         }
+
+        // 绑定/换绑目标层位须存在且占用未达配额
+        shelfLayerService.lockAndAssertCapacity(dto.getLayerCode());
 
         padInfo.setShelfLayerCode(dto.getLayerCode());
         padInfo.setBindTime(LocalDateTime.now());
@@ -299,10 +294,8 @@ public class PadInfoService {
 
         String layerCode = padInfo.getShelfLayerCode();
         if (layerCode != null && !layerCode.isEmpty()) {
-            ShelfLayer layer = shelfLayerMapper.selectByLayerCode(layerCode);
-            if (layer == null) {
-                throw new RuntimeException("货架分层不存在");
-            }
+            // 导入即上架：层位须存在且占用未达配额（逐行独立事务，占用数实时统计）
+            shelfLayerService.lockAndAssertCapacity(layerCode);
             padInfo.setBindTime(now);
             padInfoMapper.insert(padInfo);
 

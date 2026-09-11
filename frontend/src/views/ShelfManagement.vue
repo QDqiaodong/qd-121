@@ -57,14 +57,20 @@
             <div class="stat-row">
               <div class="stat-item">
                 <span class="stat-num">{{ layer.padCount || 0 }}</span>
-                <span class="stat-label">垫板数量</span>
+                <span class="stat-label">/ 容量 {{ layer.capacity ?? 0 }}</span>
               </div>
               <div class="stat-item">
-                <el-tag :type="getCapacityType(layer.padCount)" size="large">
-                  {{ getCapacityLabel(layer.padCount) }}
+                <el-tag :type="getCapacityType(layer)" size="large">
+                  {{ getCapacityLabel(layer) }}
                 </el-tag>
               </div>
             </div>
+            <el-progress
+              :percentage="getUsagePercent(layer)"
+              :status="getUsageStatus(layer)"
+              :stroke-width="8"
+              class="capacity-progress"
+            />
 
             <div class="pad-preview">
               <div v-if="layer.padList && layer.padList.length > 0" class="pad-grid">
@@ -146,6 +152,10 @@
         <el-form-item label="层序号">
           <el-input-number v-model="layerForm.layerOrder" :min="1" controls-position="right" />
         </el-form-item>
+        <el-form-item label="容量配额" required>
+          <el-input-number v-model="layerForm.capacity" :min="0" :max="9999" controls-position="right" />
+          <div class="form-tip">该层最多可存放的在架垫板数；下调时不得低于当前在架数</div>
+        </el-form-item>
         <el-form-item label="备注">
           <el-input v-model="layerForm.remark" type="textarea" :rows="2" />
         </el-form-item>
@@ -163,7 +173,9 @@
     >
       <div class="dialog-toolbar">
         <div>
-          <el-tag type="info">共 {{ currentViewLayer?.padCount || 0 }} 块垫板</el-tag>
+          <el-tag type="info">
+            在架 {{ currentViewLayer?.padCount || 0 }} / 容量 {{ currentViewLayer?.capacity ?? 0 }}
+          </el-tag>
         </div>
         <el-button type="success" size="small" @click="handleExportLayer(currentViewLayer)">
           <el-icon><Download /></el-icon>导出本层
@@ -222,6 +234,7 @@ const layerForm = reactive({
   shelfCode: '',
   layerName: '',
   layerOrder: 1,
+  capacity: 10,
   remark: ''
 })
 
@@ -246,20 +259,36 @@ const currentLayers = computed(() => {
   return allLayers.value.filter((l) => l.shelfCode === activeShelf.value)
 })
 
-const getCapacityType = (count) => {
-  const c = count || 0
-  if (c === 0) return 'info'
-  if (c < 10) return 'success'
-  if (c < 30) return 'warning'
-  return 'danger'
+// 容量占用按配额计算：0 空闲，<80% 有余量，<100% 将满，达到配额为已满
+const getUsagePercent = (layer) => {
+  const capacity = layer.capacity || 0
+  if (capacity <= 0) return (layer.padCount || 0) > 0 ? 100 : 0
+  return Math.min(Math.round(((layer.padCount || 0) / capacity) * 100), 100)
 }
 
-const getCapacityLabel = (count) => {
-  const c = count || 0
-  if (c === 0) return '空闲'
-  if (c < 10) return '轻度使用'
-  if (c < 30) return '中度使用'
-  return '高度占用'
+const getUsageStatus = (layer) => {
+  const percent = getUsagePercent(layer)
+  if (percent >= 100) return 'exception'
+  if (percent >= 80) return 'warning'
+  return 'success'
+}
+
+const getCapacityType = (layer) => {
+  const count = layer.padCount || 0
+  if (count === 0) return 'info'
+  const percent = getUsagePercent(layer)
+  if (percent >= 100) return 'danger'
+  if (percent >= 80) return 'warning'
+  return 'success'
+}
+
+const getCapacityLabel = (layer) => {
+  const count = layer.padCount || 0
+  if (count === 0) return '空闲'
+  const percent = getUsagePercent(layer)
+  if (percent >= 100) return '已满'
+  if (percent >= 80) return '将满'
+  return '有余量'
 }
 
 const loadData = async () => {
@@ -293,12 +322,24 @@ const handleAddLayer = () => {
     shelfCode: activeShelf.value || '',
     layerName: '',
     layerOrder: 1,
+    capacity: 10,
     remark: ''
   })
   layerDialogVisible.value = true
 }
 
 const handleLayerSubmit = async () => {
+  if (layerForm.capacity == null || layerForm.capacity < 0) {
+    ElMessage.warning('容量配额必须为不小于 0 的整数')
+    return
+  }
+  if (isLayerEdit.value) {
+    const used = allLayers.value.find((l) => l.id === layerForm.id)?.padCount || 0
+    if (layerForm.capacity < used) {
+      ElMessage.warning(`容量配额不能低于当前在架数（${used} 块）`)
+      return
+    }
+  }
   try {
     await saveShelfLayer({ ...layerForm })
     ElMessage.success(isLayerEdit.value ? '更新成功' : '新增成功')
@@ -438,6 +479,10 @@ onMounted(loadData)
     .layer-card-body {
       padding: 14px 16px;
 
+      .capacity-progress {
+        margin-bottom: 12px;
+      }
+
       .stat-row {
         display: flex;
         align-items: center;
@@ -545,6 +590,13 @@ onMounted(loadData)
     align-items: center;
     justify-content: space-between;
     margin-bottom: 14px;
+  }
+
+  .form-tip {
+    font-size: 12px;
+    color: #909399;
+    line-height: 1.5;
+    width: 100%;
   }
 }
 </style>
