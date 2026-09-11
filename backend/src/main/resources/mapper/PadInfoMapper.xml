@@ -12,6 +12,7 @@
         <result column="image_path" property="imagePath"/>
         <result column="shelf_layer_code" property="shelfLayerCode"/>
         <result column="bind_time" property="bindTime"/>
+        <result column="maintenance_status" property="maintenanceStatus"/>
         <result column="create_time" property="createTime"/>
         <result column="update_time" property="updateTime"/>
         <result column="remark" property="remark"/>
@@ -42,6 +43,9 @@
             </if>
             <if test="query.shelfCode != null and query.shelfCode != ''">
                 AND sl.shelf_code = #{query.shelfCode}
+            </if>
+            <if test="query.maintenanceStatus != null and query.maintenanceStatus != ''">
+                AND p.maintenance_status = #{query.maintenanceStatus}
             </if>
         </where>
         ORDER BY p.create_time DESC

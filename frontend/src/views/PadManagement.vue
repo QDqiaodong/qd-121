@@ -64,6 +64,18 @@
             />
           </el-select>
         </el-form-item>
+        <el-form-item label="保养状态">
+          <el-select
+            v-model="searchForm.maintenanceStatus"
+            placeholder="全部状态"
+            clearable
+            style="width: 140px"
+          >
+            <el-option label="可用" value="AVAILABLE" />
+            <el-option label="待检" value="PENDING" />
+            <el-option label="停用" value="DISABLED" />
+          </el-select>
+        </el-form-item>
         <el-form-item>
           <el-button type="primary" @click="handleSearch">
             <el-icon><Search /></el-icon>查询
@@ -79,6 +91,13 @@
       <el-table-column type="index" label="序号" width="60" align="center" />
       <el-table-column prop="padCode" label="垫板编号" width="130" />
       <el-table-column prop="moldType" label="适配模具" width="160" show-overflow-tooltip />
+      <el-table-column label="保养状态" width="100" align="center">
+        <template #default="{ row }">
+          <el-tag :type="getMaintenanceTagType(row.maintenanceStatus)" effect="light">
+            {{ getMaintenanceLabel(row.maintenanceStatus) }}
+          </el-tag>
+        </template>
+      </el-table-column>
       <el-table-column label="规格尺寸(mm)" width="200">
         <template #default="{ row }">
           <span>长{{ row.length }} × 宽{{ row.width }} × 厚{{ row.thickness }}</span>
@@ -125,16 +144,26 @@
           {{ formatTime(row.createTime) }}
         </template>
       </el-table-column>
-      <el-table-column label="操作" width="320" fixed="right">
+      <el-table-column label="操作" width="420" fixed="right">
         <template #default="{ row }">
           <el-button
-            v-if="row.shelfLayerCode && row.borrowStatus !== 'BORROWED'"
+            v-if="row.shelfLayerCode && row.borrowStatus !== 'BORROWED' && isPadAvailable(row)"
             link
             type="success"
             size="small"
             @click="handleCheckout(row)"
           >
             领用
+          </el-button>
+          <el-tooltip
+            v-else-if="row.shelfLayerCode && row.borrowStatus !== 'BORROWED'"
+            content="待检/停用垫板不可领用"
+            placement="top"
+          >
+            <el-button link type="success" size="small" disabled>领用</el-button>
+          </el-tooltip>
+          <el-button link type="primary" size="small" @click="handleMaintenance(row)">
+            保养
           </el-button>
           <el-button link type="primary" size="small" @click="handleViewRecord(row)">
             调整记录
@@ -424,7 +453,8 @@ const searchForm = reactive({
   padCode: '',
   moldType: '',
   shelfCode: '',
-  shelfLayerCode: ''
+  shelfLayerCode: '',
+  maintenanceStatus: ''
 })
 
 // 查询区的层位选项按所选货架级联，避免货架编号与层位编码矛盾导致恒空结果；
@@ -490,6 +520,20 @@ const handleCheckout = (row) => {
   router.push({ path: '/borrow', query: { padId: row.id } })
 }
 
+// 保养台账：可用/待检/停用，仅可用垫板允许领用
+const MAINTENANCE_LABELS = { AVAILABLE: '可用', PENDING: '待检', DISABLED: '停用' }
+const getMaintenanceLabel = (status) => MAINTENANCE_LABELS[status] || '可用'
+const getMaintenanceTagType = (status) => {
+  if (status === 'AVAILABLE' || !status) return 'success'
+  if (status === 'PENDING') return 'warning'
+  return 'danger'
+}
+const isPadAvailable = (pad) => !pad.maintenanceStatus || pad.maintenanceStatus === 'AVAILABLE'
+
+const handleMaintenance = (row) => {
+  router.push({ path: '/maintenance', query: { padId: row.id, padCode: row.padCode } })
+}
+
 const formatTime = (time) => (time ? dayjs(time).format('YYYY-MM-DD HH:mm:ss') : '-')
 
 const getAdjustTypeLabel = (type) => {
@@ -513,6 +557,7 @@ const loadData = async () => {
         if (!params[key]) delete params[key]
       }
     })
+    if (!params.maintenanceStatus) delete params.maintenanceStatus
     const data = await getPadPage(params)
     tableData.value = data.records || []
     pagination.total = data.total || 0
@@ -560,7 +605,13 @@ const handleSearch = () => {
 }
 
 const handleReset = () => {
-  Object.assign(searchForm, { padCode: '', moldType: '', shelfCode: '', shelfLayerCode: '' })
+  Object.assign(searchForm, {
+    padCode: '',
+    moldType: '',
+    shelfCode: '',
+    shelfLayerCode: '',
+    maintenanceStatus: ''
+  })
   handleSearch()
 }
 

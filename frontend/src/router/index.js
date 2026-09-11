@@ -32,6 +32,12 @@ const routes = [
     meta: { title: '垫板领用归还' }
   },
   {
+    path: '/maintenance',
+    name: 'PadMaintenance',
+    component: () => import('@/views/PadMaintenance.vue'),
+    meta: { title: '垫板保养台账' }
+  },
+  {
     path: '/record',
     name: 'AdjustRecord',
     component: () => import('@/views/AdjustRecord.vue'),

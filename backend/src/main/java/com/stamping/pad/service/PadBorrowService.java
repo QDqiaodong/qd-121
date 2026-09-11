@@ -65,6 +65,7 @@ public class PadBorrowService {
         if (pad == null) {
             throw new RuntimeException("垫板不存在");
         }
+        assertPadUsable(pad);
         Long openCount = borrowRecordMapper.selectCount(
                 new LambdaQueryWrapper<PadBorrowRecord>()
                         .eq(PadBorrowRecord::getPadId, pad.getId())
@@ -130,6 +131,8 @@ public class PadBorrowService {
         if (pad == null) {
             throw new RuntimeException("垫板档案不存在或已删除");
         }
+        // 待检/停用垫板不允许作为归还目标重新上架，须先在保养台账恢复为“可用”
+        assertPadUsable(pad);
         String returnLayerCode = dto.getReturnLayerCode() == null ? null : dto.getReturnLayerCode().trim();
         if (returnLayerCode == null || returnLayerCode.isEmpty()) {
             throw new RuntimeException("归还层位不能为空");
@@ -172,6 +175,17 @@ public class PadBorrowService {
         insertAdjustRecord(pad, record.getOriginLayerCode(), record.getReturnLayerCode(), "RETURN",
                 operator, buildReturnReason(record), returnTime);
         return borrowRecordMapper.selectDetailById(record.getId());
+    }
+
+    /** 待检/停用垫板不可领用，归还时也不可作为目标重新上架 */
+    private void assertPadUsable(PadInfo pad) {
+        String status = pad.getMaintenanceStatus();
+        if ("PENDING".equals(status)) {
+            throw new RuntimeException("垫板【" + pad.getPadCode() + "】处于待检状态，暂不可领用/归还，请先在保养台账处理");
+        }
+        if ("DISABLED".equals(status)) {
+            throw new RuntimeException("垫板【" + pad.getPadCode() + "】已停用，禁止领用/归还，请先在保养台账恢复");
+        }
     }
 
     /** 可归还层位：返回全部层位及其当前占用数量，前端按 padCount=0 放行选择 */

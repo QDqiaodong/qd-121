@@ -92,6 +92,8 @@ public class PadInfoService {
 
         PadInfo padInfo = new PadInfo();
         BeanUtils.copyProperties(dto, padInfo);
+        // 新建档案默认“可用”，避免保养状态字段为空导致领用/归还判断异常
+        padInfo.setMaintenanceStatus("AVAILABLE");
         padInfo.setCreateTime(LocalDateTime.now());
         padInfo.setUpdateTime(LocalDateTime.now());
 
@@ -289,6 +291,9 @@ public class PadInfoService {
         }
 
         LocalDateTime now = LocalDateTime.now();
+        if (padInfo.getMaintenanceStatus() == null || padInfo.getMaintenanceStatus().isEmpty()) {
+            padInfo.setMaintenanceStatus("AVAILABLE");
+        }
         padInfo.setCreateTime(now);
         padInfo.setUpdateTime(now);
 

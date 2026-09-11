@@ -28,12 +28,14 @@ CREATE TABLE IF NOT EXISTS pad_info (
     image_path VARCHAR(512) DEFAULT NULL COMMENT '实物图片路径',
     shelf_layer_code VARCHAR(64) DEFAULT NULL COMMENT '当前绑定货架分层编码',
     bind_time DATETIME DEFAULT NULL COMMENT '绑定时间',
+    maintenance_status VARCHAR(24) NOT NULL DEFAULT 'AVAILABLE' COMMENT '保养状态：AVAILABLE-可用、PENDING-待检、DISABLED-停用',
     create_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
     update_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
     remark VARCHAR(512) DEFAULT NULL COMMENT '备注',
     PRIMARY KEY (id),
     UNIQUE KEY uk_pad_code (pad_code),
-    KEY idx_shelf_layer_code (shelf_layer_code)
+    KEY idx_shelf_layer_code (shelf_layer_code),
+    KEY idx_maintenance_status (maintenance_status)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='垫板基础档案表';
 
 -- ------------------------------------------------------------
@@ -99,6 +101,30 @@ CREATE TABLE IF NOT EXISTS pad_borrow_record (
     KEY idx_pbr_checkout_time (checkout_time),
     KEY idx_pbr_return_time (return_time)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='垫板领用归还记录表';
+
+-- ------------------------------------------------------------
+-- 4.2 垫板保养记录表（幂等）
+-- 每次登记保养可同时维护垫板保养状态（可用/待检/停用），并记录状态变更前后值
+-- ------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS pad_maintenance_record (
+    id BIGINT NOT NULL AUTO_INCREMENT COMMENT '主键ID',
+    pad_id BIGINT NOT NULL COMMENT '垫板ID',
+    pad_code VARCHAR(64) NOT NULL COMMENT '垫板编号',
+    maintenance_type VARCHAR(64) NOT NULL COMMENT '保养类型：如日常保养、定期保养、维修、送检',
+    handler VARCHAR(64) NOT NULL COMMENT '处理人',
+    maintenance_time DATETIME NOT NULL COMMENT '保养时间',
+    maintenance_result VARCHAR(64) NOT NULL COMMENT '保养结果：NORMAL-正常、REPAIRED-已修复、ABNORMAL-异常待处理、SCRAPPED-报废建议',
+    status_before VARCHAR(24) DEFAULT NULL COMMENT '保养前状态：AVAILABLE/PENDING/DISABLED',
+    status_after VARCHAR(24) NOT NULL COMMENT '保养后状态：AVAILABLE-可用、PENDING-待检、DISABLED-停用',
+    remark VARCHAR(512) DEFAULT NULL COMMENT '备注',
+    create_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    update_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    PRIMARY KEY (id),
+    KEY idx_pmr_pad_id (pad_id),
+    KEY idx_pmr_pad_code (pad_code),
+    KEY idx_pmr_status_after (status_after),
+    KEY idx_pmr_maintenance_time (maintenance_time)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='垫板保养记录表';
 
 -- ------------------------------------------------------------
 -- 5. 预置货架分层数据（幂等，INSERT IGNORE）

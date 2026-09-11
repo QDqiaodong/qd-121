@@ -9,6 +9,7 @@ CREATE TABLE IF NOT EXISTS pad_info (
     image_path VARCHAR(512) DEFAULT NULL COMMENT '实物图片路径',
     shelf_layer_code VARCHAR(64) DEFAULT NULL COMMENT '当前绑定货架分层编码',
     bind_time DATETIME DEFAULT NULL COMMENT '绑定时间',
+    maintenance_status VARCHAR(24) NOT NULL DEFAULT 'AVAILABLE' COMMENT '保养状态：AVAILABLE-可用、PENDING-待检、DISABLED-停用',
     create_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
     update_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '更新时间',
     remark VARCHAR(512) DEFAULT NULL COMMENT '备注',
@@ -62,3 +63,22 @@ CREATE TABLE IF NOT EXISTS pad_borrow_record (
     PRIMARY KEY (id)
 );
 CREATE INDEX IF NOT EXISTS idx_pbr_status ON pad_borrow_record (status);
+
+CREATE TABLE IF NOT EXISTS pad_maintenance_record (
+    id BIGINT NOT NULL AUTO_INCREMENT COMMENT '主键ID',
+    pad_id BIGINT NOT NULL COMMENT '垫板ID',
+    pad_code VARCHAR(64) NOT NULL COMMENT '垫板编号',
+    maintenance_type VARCHAR(64) NOT NULL COMMENT '保养类型',
+    handler VARCHAR(64) NOT NULL COMMENT '处理人',
+    maintenance_time DATETIME NOT NULL COMMENT '保养时间',
+    maintenance_result VARCHAR(64) NOT NULL COMMENT '保养结果',
+    status_before VARCHAR(24) DEFAULT NULL COMMENT '保养前状态',
+    status_after VARCHAR(24) NOT NULL COMMENT '保养后状态',
+    remark VARCHAR(512) DEFAULT NULL COMMENT '备注',
+    create_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    update_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '更新时间',
+    PRIMARY KEY (id)
+);
+CREATE INDEX IF NOT EXISTS idx_pmr_pad_id ON pad_maintenance_record (pad_id);
+CREATE INDEX IF NOT EXISTS idx_pmr_status_after ON pad_maintenance_record (status_after);
+CREATE INDEX IF NOT EXISTS idx_pmr_maintenance_time ON pad_maintenance_record (maintenance_time);

@@ -16,4 +16,7 @@ public class PadQueryDTO {
     private String shelfLayerCode;
 
     private String shelfCode;
+
+    /** 保养状态：AVAILABLE-可用、PENDING-待检、DISABLED-停用 */
+    private String maintenanceStatus;
 }

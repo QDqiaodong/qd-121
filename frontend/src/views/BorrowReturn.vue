@@ -92,6 +92,13 @@
     <el-table :data="tableData" v-loading="loading" border stripe>
       <el-table-column type="index" label="序号" width="60" align="center" />
       <el-table-column prop="padCode" label="垫板编号" width="130" />
+      <el-table-column label="保养状态" width="100">
+        <template #default="{ row }">
+          <el-tag :type="getMaintenanceTagType(row.maintenanceStatus)" size="small" effect="light">
+            {{ getMaintenanceLabel(row.maintenanceStatus) }}
+          </el-tag>
+        </template>
+      </el-table-column>
       <el-table-column label="状态" width="150">
         <template #default="{ row }">
           <el-tag v-if="row.status === 'RETURNED'" type="success" effect="light">已归还</el-tag>
@@ -133,10 +140,10 @@
           {{ row.returnTime ? formatTime(row.returnTime) : '-' }}
         </template>
       </el-table-column>
-      <el-table-column label="操作" width="120" fixed="right">
+      <el-table-column label="操作" width="150" fixed="right">
         <template #default="{ row }">
           <el-button
-            v-if="row.status === 'BORROWED'"
+            v-if="row.status === 'BORROWED' && isPadAvailable(row)"
             link
             type="primary"
             size="small"
@@ -144,6 +151,13 @@
           >
             归还
           </el-button>
+          <el-tooltip
+            v-else-if="row.status === 'BORROWED'"
+            content="待检/停用垫板不可作为归还目标，请先在保养台账恢复为可用"
+            placement="top"
+          >
+            <el-button link type="primary" size="small" disabled>归还</el-button>
+          </el-tooltip>
           <el-button v-else link type="info" size="small" disabled>已归还</el-button>
         </template>
       </el-table-column>
@@ -246,6 +260,11 @@
       >
         <el-form-item label="垫板编号">
           <el-input :model-value="currentRecord?.padCode || ''" disabled />
+        </el-form-item>
+        <el-form-item label="保养状态">
+          <el-tag :type="getMaintenanceTagType(currentRecord?.maintenanceStatus)" size="small">
+            {{ getMaintenanceLabel(currentRecord?.maintenanceStatus) }}
+          </el-tag>
         </el-form-item>
         <el-form-item label="领用人">
           <el-input :model-value="currentRecord?.borrower || ''" disabled />
@@ -393,8 +412,22 @@ const checkoutVisible = ref(false)
 const checkoutFormRef = ref(null)
 const padLoading = ref(false)
 const allPads = ref([])
-const isPadCheckoutable = (pad) => !!(pad.shelfLayerCode && pad.borrowStatus !== 'BORROWED')
+
+const MAINTENANCE_LABELS = { AVAILABLE: '可用', PENDING: '待检', DISABLED: '停用' }
+const getMaintenanceLabel = (status) => MAINTENANCE_LABELS[status] || '可用'
+const getMaintenanceTagType = (status) => {
+  if (status === 'AVAILABLE' || !status) return 'success'
+  if (status === 'PENDING') return 'warning'
+  return 'danger'
+}
+const isPadAvailable = (pad) => !pad.maintenanceStatus || pad.maintenanceStatus === 'AVAILABLE'
+
+const isPadCheckoutable = (pad) =>
+  !!(pad.shelfLayerCode && pad.borrowStatus !== 'BORROWED' && isPadAvailable(pad))
 const padOptionLabel = (pad) => {
+  if (!isPadAvailable(pad)) {
+    return `${pad.padCode}（${getMaintenanceLabel(pad.maintenanceStatus)}，不可领用）`
+  }
   if (!pad.shelfLayerCode) return `${pad.padCode}（未绑定层位，不可领用）`
   if (pad.borrowStatus === 'BORROWED') return `${pad.padCode}（领用中，不可重复领用）`
   return `${pad.padCode}（${pad.moldType || '无模具'} / 层位：${pad.shelfLayerCode}）`
@@ -442,11 +475,13 @@ const openCheckout = async () => {
   await loadAvailablePads()
   const target = allPads.value.find((p) => p.id === Number(route.query.padId))
   if (route.query.padId && target && !isPadCheckoutable(target)) {
-    ElMessage.warning(
-      target.borrowStatus === 'BORROWED'
-        ? '该垫板已领用且未归还，禁止重复领用'
-        : '该垫板当前未在架，无法领用，请先绑定层位'
-    )
+    if (!isPadAvailable(target)) {
+      ElMessage.warning(`该垫板当前为【${getMaintenanceLabel(target.maintenanceStatus)}】状态，不可领用`)
+    } else if (target.borrowStatus === 'BORROWED') {
+      ElMessage.warning('该垫板已领用且未归还，禁止重复领用')
+    } else {
+      ElMessage.warning('该垫板当前未在架，无法领用，请先绑定层位')
+    }
     checkoutForm.padId = null
   }
 }

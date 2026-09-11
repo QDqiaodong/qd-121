@@ -49,4 +49,8 @@ public class PadBorrowRecord {
 
     @TableField(exist = false)
     private String returnLayerName;
+
+    /** 垫板当前保养状态（联表查询，非本表字段） */
+    @TableField(exist = false)
+    private String maintenanceStatus;
 }

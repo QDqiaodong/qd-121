@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.stamping.pad.mapper.PadMaintenanceRecordMapper">
+
+    <resultMap id="MaintenanceRecordResultMap" type="com.stamping.pad.entity.PadMaintenanceRecord">
+        <id column="id" property="id"/>
+        <result column="pad_id" property="padId"/>
+        <result column="pad_code" property="padCode"/>
+        <result column="maintenance_type" property="maintenanceType"/>
+        <result column="handler" property="handler"/>
+        <result column="maintenance_time" property="maintenanceTime"/>
+        <result column="maintenance_result" property="maintenanceResult"/>
+        <result column="status_before" property="statusBefore"/>
+        <result column="status_after" property="statusAfter"/>
+        <result column="remark" property="remark"/>
+        <result column="create_time" property="createTime"/>
+        <result column="update_time" property="updateTime"/>
+        <result column="current_status" property="currentStatus"/>
+        <result column="mold_type" property="moldType"/>
+    </resultMap>
+
+    <select id="selectPageList" resultMap="MaintenanceRecordResultMap">
+        SELECT m.*, p.maintenance_status AS current_status, p.mold_type AS mold_type
+        FROM pad_maintenance_record m
+        LEFT JOIN pad_info p ON m.pad_id = p.id
+        <where>
+            <if test="query.padCode != null and query.padCode != ''">
+                AND m.pad_code LIKE CONCAT('%', #{query.padCode}, '%')
+            </if>
+            <if test="query.status != null and query.status != ''">
+                AND p.maintenance_status = #{query.status}
+            </if>
+            <if test="query.startTime != null">
+                AND m.maintenance_time &gt;= #{query.startTime}
+            </if>
+            <if test="query.endTime != null">
+                AND m.maintenance_time &lt;= #{query.endTime}
+            </if>
+        </where>
+        ORDER BY m.maintenance_time DESC, m.id DESC
+    </select>
+
+    <select id="selectListByPadId" resultMap="MaintenanceRecordResultMap">
+        SELECT m.*, p.maintenance_status AS current_status, p.mold_type AS mold_type
+        FROM pad_maintenance_record m
+        LEFT JOIN pad_info p ON m.pad_id = p.id
+        WHERE m.pad_id = #{padId}
+        ORDER BY m.maintenance_time DESC, m.id DESC
+    </select>
+
+</mapper>

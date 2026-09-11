@@ -32,6 +32,9 @@ public class PadInfo {
 
     private LocalDateTime bindTime;
 
+    /** 保养状态：AVAILABLE-可用、PENDING-待检、DISABLED-停用 */
+    private String maintenanceStatus;
+
     private LocalDateTime createTime;
 
     private LocalDateTime updateTime;

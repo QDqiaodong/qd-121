@@ -20,6 +20,7 @@
         <result column="update_time" property="updateTime"/>
         <result column="overdue" property="overdue"/>
         <result column="return_layer_name" property="returnLayerName"/>
+        <result column="maintenance_status" property="maintenanceStatus"/>
     </resultMap>
 
     <sql id="baseColumns">
@@ -30,13 +31,15 @@
                  AND r.expected_return_time &lt; NOW()
             THEN 1 ELSE 0
         END AS overdue,
-        sl.layer_name AS return_layer_name
+        sl.layer_name AS return_layer_name,
+        p.maintenance_status AS maintenance_status
     </sql>
 
     <select id="selectPageList" resultMap="BorrowRecordResultMap">
         SELECT <include refid="baseColumns"/>
         FROM pad_borrow_record r
         LEFT JOIN shelf_layer sl ON r.return_layer_code = sl.layer_code
+        LEFT JOIN pad_info p ON r.pad_id = p.id
         <where>
             <if test="query.padCode != null and query.padCode != ''">
                 AND r.pad_code LIKE CONCAT('%', #{query.padCode}, '%')
@@ -66,6 +69,7 @@
         SELECT <include refid="baseColumns"/>
         FROM pad_borrow_record r
         LEFT JOIN shelf_layer sl ON r.return_layer_code = sl.layer_code
+        LEFT JOIN pad_info p ON r.pad_id = p.id
         WHERE r.id = #{id}
     </select>
 

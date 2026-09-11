@@ -40,6 +40,10 @@
               <el-icon><Van /></el-icon>
               <span>垫板领用归还</span>
             </el-menu-item>
+            <el-menu-item index="/maintenance">
+              <el-icon><Tools /></el-icon>
+              <span>垫板保养台账</span>
+            </el-menu-item>
             <el-menu-item index="/record">
               <el-icon><Document /></el-icon>
               <span>调整记录台账</span>
