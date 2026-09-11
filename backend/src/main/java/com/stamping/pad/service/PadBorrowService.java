@@ -130,14 +130,18 @@ public class PadBorrowService {
         if (pad == null) {
             throw new RuntimeException("垫板档案不存在或已删除");
         }
-        ShelfLayer layer = shelfLayerMapper.selectByLayerCode(dto.getReturnLayerCode());
+        String returnLayerCode = dto.getReturnLayerCode() == null ? null : dto.getReturnLayerCode().trim();
+        if (returnLayerCode == null || returnLayerCode.isEmpty()) {
+            throw new RuntimeException("归还层位不能为空");
+        }
+        ShelfLayer layer = shelfLayerMapper.selectByLayerCode(returnLayerCode);
         if (layer == null) {
             throw new RuntimeException("归还层位不存在");
         }
         // 归还层位必须可用：层位上不存在任何在架垫板
-        List<PadInfo> occupied = padInfoMapper.selectByLayerCode(dto.getReturnLayerCode());
+        List<PadInfo> occupied = padInfoMapper.selectByLayerCode(returnLayerCode);
         if (!occupied.isEmpty()) {
-            throw new RuntimeException("归还层位【" + dto.getReturnLayerCode() + "】已被占用，请选择其他可用层位");
+            throw new RuntimeException("归还层位【" + returnLayerCode + "】已被占用，请选择其他可用层位");
         }
 
         LocalDateTime now = LocalDateTime.now();
@@ -149,14 +153,14 @@ public class PadBorrowService {
         // 恢复垫板与层位的绑定
         LambdaUpdateWrapper<PadInfo> padUpdate = new LambdaUpdateWrapper<>();
         padUpdate.eq(PadInfo::getId, pad.getId())
-                .set(PadInfo::getShelfLayerCode, dto.getReturnLayerCode())
+                .set(PadInfo::getShelfLayerCode, returnLayerCode)
                 .set(PadInfo::getBindTime, returnTime)
                 .set(PadInfo::getUpdateTime, now);
         padInfoMapper.update(null, padUpdate);
 
         record.setStatus("RETURNED");
         record.setReturnTime(returnTime);
-        record.setReturnLayerCode(dto.getReturnLayerCode());
+        record.setReturnLayerCode(returnLayerCode);
         if (dto.getRemark() != null && !dto.getRemark().isEmpty()) {
             record.setRemark(dto.getRemark());
         }
@@ -165,7 +169,7 @@ public class PadBorrowService {
 
         String operator = dto.getOperator() != null && !dto.getOperator().isEmpty()
                 ? dto.getOperator() : record.getBorrower();
-        insertAdjustRecord(pad, record.getOriginLayerCode(), dto.getReturnLayerCode(), "RETURN",
+        insertAdjustRecord(pad, record.getOriginLayerCode(), record.getReturnLayerCode(), "RETURN",
                 operator, buildReturnReason(record), returnTime);
         return borrowRecordMapper.selectDetailById(record.getId());
     }

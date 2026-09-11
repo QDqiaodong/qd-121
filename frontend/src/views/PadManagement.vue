@@ -39,6 +39,7 @@
             placeholder="选择货架"
             clearable
             style="width: 160px"
+            @change="handleShelfFilterChange"
           >
             <el-option
               v-for="shelf in shelfOptions"
@@ -56,7 +57,7 @@
             style="width: 180px"
           >
             <el-option
-              v-for="layer in layerOptions"
+              v-for="layer in filterLayerOptions"
               :key="layer.layerCode"
               :label="layer.layerCode + ' - ' + layer.layerName"
               :value="layer.layerCode"
@@ -391,7 +392,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import {
@@ -425,6 +426,23 @@ const searchForm = reactive({
   shelfCode: '',
   shelfLayerCode: ''
 })
+
+// 查询区的层位选项按所选货架级联，避免货架编号与层位编码矛盾导致恒空结果；
+// 表单内的建档/编辑/重分配仍使用完整 layerOptions
+const filterLayerOptions = computed(() => {
+  if (!searchForm.shelfCode) return layerOptions.value
+  return layerOptions.value.filter((l) => l.shelfCode === searchForm.shelfCode)
+})
+
+const handleShelfFilterChange = () => {
+  // 切换货架后，清空不属于该货架的层位条件，保证货架编号、层位编码与垫板列表一致
+  if (
+    searchForm.shelfLayerCode &&
+    !filterLayerOptions.value.some((l) => l.layerCode === searchForm.shelfLayerCode)
+  ) {
+    searchForm.shelfLayerCode = ''
+  }
+}
 
 const pagination = reactive({
   pageNum: 1,
@@ -487,7 +505,15 @@ const getAdjustTagType = (type) => {
 const loadData = async () => {
   loading.value = true
   try {
-    const data = await getPadPage({ ...searchForm, ...pagination })
+    const params = { ...searchForm, ...pagination }
+    // 清理空白查询条件，避免空串/空格造成无结果
+    ;['padCode', 'moldType', 'shelfCode', 'shelfLayerCode'].forEach((key) => {
+      if (typeof params[key] === 'string') {
+        params[key] = params[key].trim()
+        if (!params[key]) delete params[key]
+      }
+    })
+    const data = await getPadPage(params)
     tableData.value = data.records || []
     pagination.total = data.total || 0
   } catch (e) {

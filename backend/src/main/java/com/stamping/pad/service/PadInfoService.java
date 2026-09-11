@@ -54,11 +54,31 @@ public class PadInfoService {
     }
 
     public List<PadInfo> listByLayerCode(String layerCode) {
-        return padInfoMapper.selectByLayerCode(layerCode);
+        String code = normalizeCode(layerCode);
+        if (code == null) {
+            return List.of();
+        }
+        return padInfoMapper.selectByLayerCode(code);
     }
 
     public List<PadInfo> listByShelfCode(String shelfCode) {
-        return padInfoMapper.selectByShelfCode(shelfCode);
+        String code = normalizeCode(shelfCode);
+        if (code == null) {
+            return List.of();
+        }
+        return padInfoMapper.selectByShelfCode(code);
+    }
+
+    /** 编号仅做查询条件：去除首尾空白，空白或长度非法时返回 null，由调用方按无结果处理 */
+    private String normalizeCode(String code) {
+        if (code == null) {
+            return null;
+        }
+        String trimmed = code.trim();
+        if (trimmed.isEmpty() || trimmed.length() > 64) {
+            return null;
+        }
+        return trimmed;
     }
 
     @Transactional(rollbackFor = Exception.class)

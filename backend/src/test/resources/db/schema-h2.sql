@@ -1,0 +1,64 @@
+-- H2 (MODE=MySQL) 测试建表脚本，结构与 mysql/init/init.sql 保持一致
+CREATE TABLE IF NOT EXISTS pad_info (
+    id BIGINT NOT NULL AUTO_INCREMENT COMMENT '主键ID',
+    pad_code VARCHAR(64) NOT NULL COMMENT '垫板编号',
+    mold_type VARCHAR(128) DEFAULT NULL COMMENT '适配模具',
+    length DECIMAL(10,2) DEFAULT NULL COMMENT '长度(mm)',
+    width DECIMAL(10,2) DEFAULT NULL COMMENT '宽度(mm)',
+    thickness DECIMAL(10,2) DEFAULT NULL COMMENT '厚度(mm)',
+    image_path VARCHAR(512) DEFAULT NULL COMMENT '实物图片路径',
+    shelf_layer_code VARCHAR(64) DEFAULT NULL COMMENT '当前绑定货架分层编码',
+    bind_time DATETIME DEFAULT NULL COMMENT '绑定时间',
+    create_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    update_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '更新时间',
+    remark VARCHAR(512) DEFAULT NULL COMMENT '备注',
+    PRIMARY KEY (id),
+    UNIQUE KEY uk_pad_code (pad_code)
+);
+
+CREATE TABLE IF NOT EXISTS shelf_layer (
+    id BIGINT NOT NULL AUTO_INCREMENT COMMENT '主键ID',
+    layer_code VARCHAR(64) NOT NULL COMMENT '分层编码',
+    shelf_code VARCHAR(64) NOT NULL COMMENT '货架编码',
+    layer_name VARCHAR(128) DEFAULT NULL COMMENT '分层名称',
+    layer_order INT DEFAULT 0 COMMENT '层序号',
+    create_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    update_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '更新时间',
+    remark VARCHAR(512) DEFAULT NULL COMMENT '备注',
+    PRIMARY KEY (id),
+    UNIQUE KEY uk_layer_code (layer_code)
+);
+CREATE INDEX IF NOT EXISTS idx_shelf_code ON shelf_layer (shelf_code);
+
+CREATE TABLE IF NOT EXISTS layer_adjust_record (
+    id BIGINT NOT NULL AUTO_INCREMENT COMMENT '主键ID',
+    pad_id BIGINT NOT NULL COMMENT '垫板ID',
+    pad_code VARCHAR(64) NOT NULL COMMENT '垫板编号',
+    old_layer_code VARCHAR(64) DEFAULT NULL COMMENT '原分层编码',
+    new_layer_code VARCHAR(64) DEFAULT NULL COMMENT '新分层编码',
+    adjust_type VARCHAR(32) NOT NULL COMMENT '调整类型',
+    operator VARCHAR(64) DEFAULT NULL COMMENT '操作人',
+    adjust_reason VARCHAR(512) DEFAULT NULL COMMENT '调整原因',
+    adjust_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '调整时间',
+    PRIMARY KEY (id)
+);
+
+CREATE TABLE IF NOT EXISTS pad_borrow_record (
+    id BIGINT NOT NULL AUTO_INCREMENT COMMENT '主键ID',
+    pad_id BIGINT NOT NULL COMMENT '垫板ID',
+    pad_code VARCHAR(64) NOT NULL COMMENT '垫板编号',
+    borrower VARCHAR(64) NOT NULL COMMENT '领用人',
+    production_line VARCHAR(128) NOT NULL COMMENT '产线/工位',
+    purpose VARCHAR(512) DEFAULT NULL COMMENT '用途',
+    checkout_time DATETIME NOT NULL COMMENT '领用时间',
+    expected_return_time DATETIME DEFAULT NULL COMMENT '预计归还时间',
+    return_time DATETIME DEFAULT NULL COMMENT '实际归还时间',
+    origin_layer_code VARCHAR(64) DEFAULT NULL COMMENT '领用时所在层位',
+    return_layer_code VARCHAR(64) DEFAULT NULL COMMENT '归还层位',
+    status VARCHAR(16) NOT NULL DEFAULT 'BORROWED' COMMENT '状态',
+    remark VARCHAR(512) DEFAULT NULL COMMENT '备注',
+    create_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    update_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '更新时间',
+    PRIMARY KEY (id)
+);
+CREATE INDEX IF NOT EXISTS idx_pbr_status ON pad_borrow_record (status);

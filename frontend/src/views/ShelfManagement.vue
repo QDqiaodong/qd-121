@@ -3,14 +3,17 @@
     <div class="page-container">
       <div class="page-header">
         <h2 class="page-title">货架层位管理</h2>
-        <div>
+        <div class="header-actions">
+          <el-button @click="loadData">
+            <el-icon><Refresh /></el-icon>刷新
+          </el-button>
           <el-button type="primary" @click="handleAddLayer">
             <el-icon><Plus /></el-icon>新增分层
           </el-button>
         </div>
       </div>
 
-      <div class="toolbar">
+      <div class="toolbar" v-if="shelfGroups.length > 0">
         <el-tabs v-model="activeShelf" @tab-change="handleShelfChange">
           <el-tab-pane
             v-for="shelf in shelfGroups"
@@ -111,6 +114,21 @@
             </el-button>
           </div>
         </div>
+
+        <el-empty
+          v-if="!loading && shelfGroups.length === 0"
+          description="暂无货架分层数据"
+          class="shelf-empty"
+        >
+          <el-button type="primary" @click="handleAddLayer">
+            <el-icon><Plus /></el-icon>新增分层
+          </el-button>
+        </el-empty>
+        <el-empty
+          v-else-if="!loading && currentLayers.length === 0"
+          description="当前货架下暂无层位"
+          class="shelf-empty"
+        />
       </div>
     </div>
 
@@ -220,14 +238,11 @@ const shelfGroups = computed(() => {
     }
     map[layer.shelfCode].totalCount += layer.padCount || 0
   })
-  const groups = Object.values(map)
-  if (groups.length > 0 && !activeShelf.value) {
-    activeShelf.value = groups[0].shelfCode
-  }
-  return groups
+  return Object.values(map)
 })
 
 const currentLayers = computed(() => {
+  if (!activeShelf.value) return []
   return allLayers.value.filter((l) => l.shelfCode === activeShelf.value)
 })
 
@@ -250,16 +265,23 @@ const getCapacityLabel = (count) => {
 const loadData = async () => {
   loading.value = true
   try {
-    allLayers.value = await getShelfLayerGroup()
+    allLayers.value = (await getShelfLayerGroup()) || []
+    // 数据刷新后校正选中货架：当前选中不存在（货架被删/领用离架空架）时回退到第一个货架
+    const codes = shelfGroups.value.map((g) => g.shelfCode)
+    if (!activeShelf.value || !codes.includes(activeShelf.value)) {
+      activeShelf.value = codes[0] || ''
+    }
   } catch (e) {
     console.error(e)
+    allLayers.value = []
+    activeShelf.value = ''
   } finally {
     loading.value = false
   }
 }
 
 const handleShelfChange = () => {
-  // tab切换自动筛选
+  // tab 切换由 v-model 驱动 currentLayers 自动筛选，此处保留用于后续扩展
 }
 
 const handleAddLayer = () => {
@@ -351,6 +373,11 @@ onMounted(loadData)
 
 <style lang="scss" scoped>
 .shelf-page {
+  .header-actions {
+    display: flex;
+    gap: 8px;
+  }
+
   .toolbar {
     margin-bottom: 20px;
   }
@@ -359,6 +386,13 @@ onMounted(loadData)
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
     gap: 16px;
+  }
+
+  .shelf-empty {
+    grid-column: 1 / -1;
+    background: #fff;
+    border-radius: 10px;
+    padding: 40px 0;
   }
 
   .layer-card {

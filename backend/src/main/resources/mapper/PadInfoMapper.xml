@@ -63,10 +63,10 @@
                br.status AS borrow_status, br.borrower, br.production_line,
                br.checkout_time AS checkout_time_borrow
         FROM pad_info p
-        LEFT JOIN shelf_layer sl ON p.shelf_layer_code = sl.layer_code
+        INNER JOIN shelf_layer sl ON p.shelf_layer_code = sl.layer_code
         LEFT JOIN pad_borrow_record br ON br.pad_id = p.id AND br.status = 'BORROWED'
-        WHERE sl.shelf_code = #{query.shelfCode}
-        ORDER BY p.pad_code ASC
+        WHERE sl.shelf_code = #{shelfCode}
+        ORDER BY sl.layer_code ASC, p.pad_code ASC
     </select>
 
 </mapper>
