@@ -13,6 +13,7 @@ import com.stamping.pad.service.LayerAdjustRecordService;
 import com.stamping.pad.service.PadBorrowService;
 import com.stamping.pad.service.PadInfoService;
 import com.stamping.pad.service.PadMaintenanceService;
+import com.stamping.pad.service.PadMoldReserveService;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -33,6 +34,7 @@ public class PadInfoController {
     private final LayerAdjustRecordService recordService;
     private final PadBorrowService padBorrowService;
     private final PadMaintenanceService padMaintenanceService;
+    private final PadMoldReserveService padMoldReserveService;
 
     @GetMapping("/page")
     public Result<Page<PadInfo>> page(PadQueryDTO query) {
@@ -105,6 +107,7 @@ public class PadInfoController {
         stats.put("boundCount", padInfoService.countTotal() - padInfoService.countUnbound());
         stats.putAll(padBorrowService.statistics());
         stats.putAll(padMaintenanceService.statistics());
+        stats.put("reserveActiveCount", padMoldReserveService.statistics().get("activeCount"));
         return Result.success(stats);
     }
 }

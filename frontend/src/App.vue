@@ -44,6 +44,10 @@
               <el-icon><TrendCharts /></el-icon>
               <span>层位临时扩容</span>
             </el-menu-item>
+            <el-menu-item index="/pad-reserve">
+              <el-icon><Stamp /></el-icon>
+              <span>换模垫板预留</span>
+            </el-menu-item>
             <el-menu-item index="/borrow">
               <el-icon><Van /></el-icon>
               <span>垫板领用归还</span>

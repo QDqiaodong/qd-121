@@ -38,6 +38,7 @@ public class PadMaintenanceService {
     private final PadMaintenanceRecordMapper maintenanceRecordMapper;
     private final PadInfoMapper padInfoMapper;
     private final LayerAdjustRecordMapper adjustRecordMapper;
+    private final PadMoldReserveService padMoldReserveService;
 
     public Page<PadMaintenanceRecord> pageList(MaintenanceRecordQueryDTO query) {
         Page<PadMaintenanceRecord> page = new Page<>(query.getPageNum(), query.getPageSize());
@@ -78,7 +79,8 @@ public class PadMaintenanceService {
      */
     @Transactional(rollbackFor = Exception.class)
     public PadMaintenanceRecord register(PadMaintenanceDTO dto) {
-        PadInfo pad = padInfoMapper.selectById(dto.getPadId());
+        // 行锁垫板：与换模预留登记/领用串行化，预留期内自动离架被拦截时口径一致
+        PadInfo pad = padInfoMapper.lockById(dto.getPadId());
         if (pad == null) {
             throw new RuntimeException("垫板不存在");
         }
@@ -129,6 +131,8 @@ public class PadMaintenanceService {
         // 下调配额被卡住；离架后占用数与档案绑定一致，不留下无主占用
         if (OFF_SHELF_STATUS.contains(statusAfter)
                 && pad.getShelfLayerCode() != null && !pad.getShelfLayerCode().isEmpty()) {
+            // 换模预留期内强制离架会导致预留板无层位、换模上线无板可用，须先释放预留
+            padMoldReserveService.assertNotReservedForOffShelf(pad.getId(), pad.getPadCode());
             String originLayerCode = pad.getShelfLayerCode();
             // 显式 set null，避免 updateById 忽略空字段
             LambdaUpdateWrapper<PadInfo> offShelf = new LambdaUpdateWrapper<>();

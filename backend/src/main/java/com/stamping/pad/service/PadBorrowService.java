@@ -38,6 +38,7 @@ public class PadBorrowService {
     private final PadInfoMapper padInfoMapper;
     private final LayerAdjustRecordMapper recordMapper;
     private final ShelfLayerService shelfLayerService;
+    private final PadMoldReserveService padMoldReserveService;
 
     public Page<PadBorrowRecord> pageList(BorrowRecordQueryDTO query) {
         Page<PadBorrowRecord> page = new Page<>(query.getPageNum(), query.getPageSize());
@@ -56,15 +57,18 @@ public class PadBorrowService {
 
     /**
      * 领用登记：仅在架垫板可领用；同一块垫板存在未归还记录时禁止重复领用。
+     * 换模预留生效期内的垫板禁止被其他产线领用。
      * 领用后垫板 shelf_layer_code/bind_time 置空（离架），并写入 CHECKOUT 调整记录。
      */
     @Transactional(rollbackFor = Exception.class)
     public PadBorrowRecord checkout(PadCheckoutDTO dto) {
-        PadInfo pad = padInfoMapper.selectById(dto.getPadId());
+        PadInfo pad = padInfoMapper.lockById(dto.getPadId());
         if (pad == null) {
             throw new RuntimeException("垫板不存在");
         }
         assertPadUsable(pad);
+        // 行锁内校验换模预留：预留期内禁止领用，与预留登记并发串行化
+        padMoldReserveService.assertNotEffectivelyReserved(pad);
         Long openCount = borrowRecordMapper.selectCount(
                 new LambdaQueryWrapper<PadBorrowRecord>()
                         .eq(PadBorrowRecord::getPadId, pad.getId())

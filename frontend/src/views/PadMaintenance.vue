@@ -191,6 +191,9 @@
           <span v-if="selectedPad.borrowStatus === 'BORROWED'" class="form-tip warning">
             该垫板领用离架中，仍可登记保养并更新状态
           </span>
+          <span v-else-if="selectedPad.reserveId && willAutoOffShelf" class="form-tip warning">
+            该垫板已预留给模具 {{ selectedPad.reserveMoldCode || '-' }}，待检/停用会强制离架，预留期内将被拦截，请先释放预留
+          </span>
           <span v-else-if="willAutoOffShelf" class="form-tip warning">
             当前在架 {{ selectedPad.shelfLayerCode }}，登记为{{ getStatusLabel(registerForm.statusAfter) }}后将自动离架
           </span>

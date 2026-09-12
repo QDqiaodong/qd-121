@@ -439,7 +439,7 @@ const getStatusTagType = (status) => {
 
 const hasSuggestion = (padId) => suggestionPadIds.value.includes(padId)
 const isPadScrappable = (pad) =>
-  hasSuggestion(pad.id) && pad.borrowStatus !== 'BORROWED'
+  hasSuggestion(pad.id) && pad.borrowStatus !== 'BORROWED' && !pad.reserveId
 
 const padOptionLabel = (pad) => {
   const parts = [`${pad.padCode}（${pad.moldType || '无模具'} / ${getStatusLabel(pad.maintenanceStatus)}`]
@@ -447,6 +447,7 @@ const padOptionLabel = (pad) => {
   if (pad.shelfLayerCode) parts.push('层位:' + pad.shelfLayerCode)
   let label = parts.join(' / ') + '）'
   if (!hasSuggestion(pad.id)) label += '【无报废建议】'
+  else if (pad.reserveId) label += `【已预留给模具 ${pad.reserveMoldCode || ''}】`
   else if (pad.borrowStatus === 'BORROWED') label += '【领用中】'
   return label
 }

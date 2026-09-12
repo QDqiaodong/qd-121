@@ -148,3 +148,39 @@ CREATE INDEX IF NOT EXISTS idx_lcer_layer_code ON layer_capacity_expand_record (
 CREATE INDEX IF NOT EXISTS idx_lcer_status ON layer_capacity_expand_record (status);
 CREATE INDEX IF NOT EXISTS idx_lcer_start_time ON layer_capacity_expand_record (start_time);
 CREATE INDEX IF NOT EXISTS idx_lcer_end_time ON layer_capacity_expand_record (end_time);
+
+CREATE TABLE IF NOT EXISTS pad_mold_reserve_record (
+    id BIGINT NOT NULL AUTO_INCREMENT COMMENT '主键ID',
+    mold_code VARCHAR(64) NOT NULL COMMENT '模具编码（即将上线的模具）',
+    mold_name VARCHAR(128) DEFAULT NULL COMMENT '模具名称',
+    production_line VARCHAR(128) DEFAULT NULL COMMENT '上线产线/工位',
+    start_time DATETIME NOT NULL COMMENT '预留生效开始时间',
+    end_time DATETIME NOT NULL COMMENT '预留生效结束时间（到期自动释放）',
+    operator VARCHAR(64) NOT NULL COMMENT '经办人',
+    status VARCHAR(16) NOT NULL DEFAULT 'ACTIVE' COMMENT '状态：PENDING-待生效、ACTIVE-生效中、EXPIRED-已到期、RELEASED-已释放',
+    release_time DATETIME DEFAULT NULL COMMENT '实际释放时间（手工释放时间或到期时间）',
+    release_conclusion VARCHAR(512) DEFAULT NULL COMMENT '释放结论（手工释放必填，到期由系统补写）',
+    release_operator VARCHAR(64) DEFAULT NULL COMMENT '释放经办人',
+    remark VARCHAR(512) DEFAULT NULL COMMENT '备注',
+    create_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    update_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '更新时间',
+    PRIMARY KEY (id)
+);
+CREATE INDEX IF NOT EXISTS idx_pmrr_mold_code ON pad_mold_reserve_record (mold_code);
+CREATE INDEX IF NOT EXISTS idx_pmrr_status ON pad_mold_reserve_record (status);
+CREATE INDEX IF NOT EXISTS idx_pmrr_start_time ON pad_mold_reserve_record (start_time);
+CREATE INDEX IF NOT EXISTS idx_pmrr_end_time ON pad_mold_reserve_record (end_time);
+
+CREATE TABLE IF NOT EXISTS pad_mold_reserve_item (
+    id BIGINT NOT NULL AUTO_INCREMENT COMMENT '主键ID',
+    reserve_id BIGINT NOT NULL COMMENT '预留记录ID',
+    pad_id BIGINT NOT NULL COMMENT '垫板ID',
+    pad_code VARCHAR(64) NOT NULL COMMENT '垫板编码（登记时快照）',
+    mold_type VARCHAR(128) DEFAULT NULL COMMENT '适配模具（登记时快照）',
+    layer_code VARCHAR(64) DEFAULT NULL COMMENT '预留时所在层位（登记时快照）',
+    create_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    PRIMARY KEY (id)
+);
+CREATE INDEX IF NOT EXISTS idx_pmri_reserve_id ON pad_mold_reserve_item (reserve_id);
+CREATE INDEX IF NOT EXISTS idx_pmri_pad_id ON pad_mold_reserve_item (pad_id);
+CREATE INDEX IF NOT EXISTS idx_pmri_pad_code ON pad_mold_reserve_item (pad_code);

@@ -38,6 +38,12 @@ const routes = [
     meta: { title: '层位临时扩容' }
   },
   {
+    path: '/pad-reserve',
+    name: 'PadMoldReserve',
+    component: () => import('@/views/PadMoldReserve.vue'),
+    meta: { title: '换模垫板预留' }
+  },
+  {
     path: '/borrow',
     name: 'BorrowReturn',
     component: () => import('@/views/BorrowReturn.vue'),

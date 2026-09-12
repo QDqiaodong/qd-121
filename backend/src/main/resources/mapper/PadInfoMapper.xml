@@ -23,6 +23,8 @@
         <result column="production_line" property="productionLine"/>
         <result column="checkout_time_borrow" property="checkoutTime"/>
         <result column="scrap_suggested" property="scrapSuggested"/>
+        <result column="reserve_id" property="reserveId"/>
+        <result column="reserve_mold_code" property="reserveMoldCode"/>
     </resultMap>
 
     <sql id="padExtraColumns">
@@ -30,7 +32,17 @@
         br.status AS borrow_status, br.borrower, br.production_line,
         br.checkout_time AS checkout_time_borrow,
         EXISTS(SELECT 1 FROM pad_maintenance_record mr
-               WHERE mr.pad_id = p.id AND mr.maintenance_result = 'SCRAPPED') AS scrap_suggested
+               WHERE mr.pad_id = p.id AND mr.maintenance_result = 'SCRAPPED') AS scrap_suggested,
+        (SELECT r.id FROM pad_mold_reserve_record r
+         INNER JOIN pad_mold_reserve_item ri ON ri.reserve_id = r.id
+         WHERE ri.pad_id = p.id AND r.status IN ('PENDING', 'ACTIVE')
+           AND r.end_time &gt;= NOW()
+         ORDER BY r.start_time DESC, r.id DESC LIMIT 1) AS reserve_id,
+        (SELECT r.mold_code FROM pad_mold_reserve_record r
+         INNER JOIN pad_mold_reserve_item ri ON ri.reserve_id = r.id
+         WHERE ri.pad_id = p.id AND r.status IN ('PENDING', 'ACTIVE')
+           AND r.end_time &gt;= NOW()
+         ORDER BY r.start_time DESC, r.id DESC LIMIT 1) AS reserve_mold_code
     </sql>
 
     <select id="selectPageList" resultMap="PadInfoResultMap">
@@ -74,6 +86,28 @@
         LEFT JOIN pad_borrow_record br ON br.pad_id = p.id AND br.status = 'BORROWED'
         WHERE sl.shelf_code = #{shelfCode}
         ORDER BY sl.layer_code ASC, p.pad_code ASC
+    </select>
+
+    <select id="selectByIds" resultMap="PadInfoResultMap">
+        SELECT <include refid="padExtraColumns"/>
+        FROM pad_info p
+        LEFT JOIN shelf_layer sl ON p.shelf_layer_code = sl.layer_code
+        LEFT JOIN pad_borrow_record br ON br.pad_id = p.id AND br.status = 'BORROWED'
+        WHERE p.id IN
+        <foreach collection="ids" item="id" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+        ORDER BY p.pad_code ASC
+    </select>
+
+    <!-- 预留登记校验前对垫板行加锁，串行化同一垫板的预留与领用/解绑并发 -->
+    <select id="lockById" resultMap="PadInfoResultMap">
+        SELECT <include refid="padExtraColumns"/>
+        FROM pad_info p
+        LEFT JOIN shelf_layer sl ON p.shelf_layer_code = sl.layer_code
+        LEFT JOIN pad_borrow_record br ON br.pad_id = p.id AND br.status = 'BORROWED'
+        WHERE p.id = #{id}
+        FOR UPDATE
     </select>
 
 </mapper>

@@ -135,6 +135,9 @@
             <div style="font-size: 12px; color: #909399; margin-top: 2px">
               {{ row.layerName }}
             </div>
+            <el-tag v-if="row.reserveId" type="warning" effect="dark" size="small" style="margin-top: 4px">
+              已预留 · 模具 {{ row.reserveMoldCode || '-' }}
+            </el-tag>
           </template>
           <el-tag v-else type="danger" effect="plain">未绑定</el-tag>
         </template>
@@ -149,7 +152,7 @@
           {{ formatTime(row.createTime) }}
         </template>
       </el-table-column>
-      <el-table-column label="操作" width="470" fixed="right">
+      <el-table-column label="操作" width="530" fixed="right">
         <template #default="{ row }">
           <template v-if="isPadScrapped(row)">
             <el-button link type="danger" size="small" @click="goScrap(row)">报废记录</el-button>
@@ -159,7 +162,7 @@
           </template>
           <template v-else>
             <el-button
-              v-if="row.shelfLayerCode && row.borrowStatus !== 'BORROWED' && isPadAvailable(row)"
+              v-if="row.shelfLayerCode && row.borrowStatus !== 'BORROWED' && isPadAvailable(row) && !row.reserveId"
               link
               type="success"
               size="small"
@@ -168,12 +171,37 @@
               领用
             </el-button>
             <el-tooltip
+              v-else-if="row.shelfLayerCode && row.borrowStatus !== 'BORROWED' && row.reserveId"
+              :content="`已预留给模具 ${row.reserveMoldCode || ''}，预留期内不可领用`"
+              placement="top"
+            >
+              <el-button link type="success" size="small" disabled>领用</el-button>
+            </el-tooltip>
+            <el-tooltip
               v-else-if="row.shelfLayerCode && row.borrowStatus !== 'BORROWED'"
               content="待检/停用垫板不可领用"
               placement="top"
             >
               <el-button link type="success" size="small" disabled>领用</el-button>
             </el-tooltip>
+            <el-button
+              v-if="row.shelfLayerCode && row.borrowStatus !== 'BORROWED' && isPadAvailable(row) && !row.reserveId"
+              link
+              type="warning"
+              size="small"
+              @click="handleReserve(row)"
+            >
+              预留
+            </el-button>
+            <el-button
+              v-else-if="row.reserveId"
+              link
+              type="warning"
+              size="small"
+              @click="goReserveRecord(row)"
+            >
+              预留记录
+            </el-button>
             <el-button link type="primary" size="small" @click="handleMaintenance(row)">
               保养
             </el-button>
@@ -190,7 +218,16 @@
               调整记录
             </el-button>
             <el-tooltip
-              v-if="row.borrowStatus !== 'BORROWED' && !isPadAvailable(row)"
+              v-if="row.reserveId"
+              :content="`已预留给模具 ${row.reserveMoldCode || ''}，预留期内禁止解绑/换层`"
+              placement="top"
+            >
+              <el-button link type="primary" size="small" disabled>
+                {{ row.shelfLayerCode ? '重分配' : '绑定层位' }}
+              </el-button>
+            </el-tooltip>
+            <el-tooltip
+              v-else-if="row.borrowStatus !== 'BORROWED' && !isPadAvailable(row)"
               content="待检/停用垫板不可上架，请先在保养台账恢复为可用"
               placement="top"
             >
@@ -208,8 +245,15 @@
             >
               {{ row.shelfLayerCode ? '重分配' : '绑定层位' }}
             </el-button>
+            <el-tooltip
+              v-if="row.shelfLayerCode && row.reserveId"
+              content="换模预留生效期内禁止解绑"
+              placement="top"
+            >
+              <el-button link type="warning" size="small" disabled>解绑</el-button>
+            </el-tooltip>
             <el-button
-              v-if="row.shelfLayerCode"
+              v-else-if="row.shelfLayerCode"
               link
               type="warning"
               size="small"
@@ -337,10 +381,13 @@
                   :key="layer.layerCode"
                   :label="layerOptionLabel(layer)"
                   :value="layer.layerCode"
-                  :disabled="(isLayerFull(layer) && layer.layerCode !== formData.shelfLayerCode) || (isLayerBlocked(layer) && layer.layerCode !== formData.shelfLayerCode) || (isEdit && !isPadAvailable(formData))"
+                  :disabled="(isLayerFull(layer) && layer.layerCode !== formData.shelfLayerCode) || (isLayerBlocked(layer) && layer.layerCode !== formData.shelfLayerCode) || (isEdit && !isPadAvailable(formData)) || (isEdit && formData.reserveId && layer.layerCode !== formData.shelfLayerCode)"
                 />
               </el-select>
-              <div v-if="isEdit && !isPadAvailable(formData)" class="form-tip">
+              <div v-if="isEdit && formData.reserveId" class="form-tip">
+                该垫板已预留给模具 {{ formData.reserveMoldCode || '-' }}，预留期内禁止换层/解绑（可保留原层位编辑其他信息）
+              </div>
+              <div v-else-if="isEdit && !isPadAvailable(formData)" class="form-tip">
                 待检/停用垫板不可上架，请先在保养台账恢复为可用（可清空层位完成解绑）
               </div>
             </el-form-item>
@@ -521,6 +568,8 @@ const dialogVisible = ref(false)
 const dialogTitle = ref('')
 const formRef = ref(null)
 const isEdit = ref(false)
+// 编辑入口的原层位：预留板编辑时用于对比层位是否被改动（禁止换层/解绑）
+const editingOriginalLayer = ref(null)
 const formData = reactive({
   id: null,
   padCode: '',
@@ -555,6 +604,16 @@ const goImport = () => router.push('/pad/import')
 
 const handleCheckout = (row) => {
   router.push({ path: '/borrow', query: { padId: row.id } })
+}
+
+// 换模预留快捷入口：跳转预留台账并预选当前在架垫板
+const handleReserve = (row) => {
+  router.push({ path: '/pad-reserve', query: { padId: row.id } })
+}
+
+// 查看该垫板所属模具的预留台账（全部状态回看）
+const goReserveRecord = (row) => {
+  router.push({ path: '/pad-reserve', query: { moldCode: row.reserveMoldCode || '' } })
 }
 
 // 保养台账：可用/待检/停用/已报废，仅可用垫板允许领用
@@ -683,6 +742,7 @@ const handleReset = () => {
 
 const handleAdd = () => {
   isEdit.value = false
+  editingOriginalLayer.value = null
   dialogTitle.value = '新建垫板档案'
   Object.assign(formData, {
     id: null,
@@ -704,6 +764,7 @@ const handleEdit = (row) => {
   isEdit.value = true
   dialogTitle.value = '编辑垫板档案'
   Object.assign(formData, JSON.parse(JSON.stringify(row)))
+  editingOriginalLayer.value = row.shelfLayerCode || null
   selectedSpec.value = ''
   loadLayers()
   dialogVisible.value = true
@@ -718,6 +779,12 @@ const handleSubmit = async () => {
   // 待检/停用垫板不可上架（允许清空层位解绑），后端同样二次校验
   if (isEdit.value && !isPadAvailable(formData) && formData.shelfLayerCode) {
     ElMessage.warning('待检/停用垫板不可上架，请先在保养台账恢复为可用')
+    return
+  }
+  // 换模预留生效期内禁止换层/解绑，可保留原层位编辑其他信息
+  if (isEdit.value && formData.reserveId
+      && (editingOriginalLayer.value || null) !== (formData.shelfLayerCode || null)) {
+    ElMessage.warning(`该垫板已预留给模具 ${formData.reserveMoldCode || ''}，预留期内禁止换层/解绑，请先释放预留`)
     return
   }
   try {

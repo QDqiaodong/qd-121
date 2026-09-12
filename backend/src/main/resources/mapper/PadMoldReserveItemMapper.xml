@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.stamping.pad.mapper.PadMoldReserveItemMapper">
+
+    <resultMap id="PadMoldReserveItemResultMap" type="com.stamping.pad.entity.PadMoldReserveItem">
+        <id column="id" property="id"/>
+        <result column="reserve_id" property="reserveId"/>
+        <result column="pad_id" property="padId"/>
+        <result column="pad_code" property="padCode"/>
+        <result column="mold_type" property="moldType"/>
+        <result column="layer_code" property="layerCode"/>
+        <result column="create_time" property="createTime"/>
+        <result column="layer_name" property="layerName"/>
+        <result column="current_layer_code" property="currentLayerCode"/>
+        <result column="maintenance_status" property="maintenanceStatus"/>
+    </resultMap>
+
+    <sql id="itemColumns">
+        i.id, i.reserve_id, i.pad_id, i.pad_code, i.mold_type, i.layer_code, i.create_time,
+        sl.layer_name,
+        p.shelf_layer_code AS current_layer_code,
+        p.maintenance_status
+    </sql>
+
+    <select id="selectByReserveId" resultMap="PadMoldReserveItemResultMap">
+        SELECT <include refid="itemColumns"/>
+        FROM pad_mold_reserve_item i
+        LEFT JOIN pad_info p ON p.id = i.pad_id
+        LEFT JOIN shelf_layer sl ON sl.layer_code = i.layer_code
+        WHERE i.reserve_id = #{reserveId}
+        ORDER BY i.pad_code ASC
+    </select>
+
+    <select id="selectByReserveIds" resultMap="PadMoldReserveItemResultMap">
+        SELECT <include refid="itemColumns"/>
+        FROM pad_mold_reserve_item i
+        LEFT JOIN pad_info p ON p.id = i.pad_id
+        LEFT JOIN shelf_layer sl ON sl.layer_code = i.layer_code
+        WHERE i.reserve_id IN
+        <foreach collection="reserveIds" item="rid" open="(" separator="," close=")">
+            #{rid}
+        </foreach>
+        ORDER BY i.reserve_id ASC, i.pad_code ASC
+    </select>
+
+</mapper>

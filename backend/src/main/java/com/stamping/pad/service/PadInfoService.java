@@ -30,6 +30,7 @@ public class PadInfoService {
     private final LayerAdjustRecordMapper recordMapper;
     private final PadBorrowRecordMapper borrowRecordMapper;
     private final ShelfLayerService shelfLayerService;
+    private final PadMoldReserveService padMoldReserveService;
 
     /** 领用中的垫板已离架，层位调整需在归还后进行，防止在架状态与领用闭环冲突 */
     private void assertNotBorrowed(Long padId) {
@@ -134,7 +135,7 @@ public class PadInfoService {
 
     @Transactional(rollbackFor = Exception.class)
     public PadInfo update(PadInfoDTO dto) {
-        PadInfo existing = padInfoMapper.selectById(dto.getId());
+        PadInfo existing = padInfoMapper.lockById(dto.getId());
         if (existing == null) {
             throw new RuntimeException("垫板不存在");
         }
@@ -158,6 +159,8 @@ public class PadInfoService {
         boolean layerChanged = !Objects.equals(oldLayerCode, newLayerCode);
         if (layerChanged) {
             assertNotBorrowed(existing.getId());
+            // 换模预留生效期内禁止解绑/换层（在架板不能动）
+            padMoldReserveService.assertNotEffectivelyReserved(existing);
         }
         String adjustType = null;
 
@@ -213,11 +216,13 @@ public class PadInfoService {
 
     @Transactional(rollbackFor = Exception.class)
     public void delete(Long id) {
-        PadInfo padInfo = padInfoMapper.selectById(id);
+        PadInfo padInfo = padInfoMapper.lockById(id);
         if (padInfo == null) {
             throw new RuntimeException("垫板不存在");
         }
         assertNotBorrowed(id);
+        // 存在未释放换模预留的垫板不能删除，避免预留台账留下无主明细
+        padMoldReserveService.assertNotReservedForDelete(id, padInfo.getPadCode());
         if ("SCRAPPED".equals(padInfo.getMaintenanceStatus())) {
             throw new RuntimeException("垫板已报废出库，档案随报废台账留存，禁止删除");
         }
@@ -229,7 +234,7 @@ public class PadInfoService {
 
     @Transactional(rollbackFor = Exception.class)
     public void bindLayer(BindLayerDTO dto) {
-        PadInfo padInfo = padInfoMapper.selectById(dto.getPadId());
+        PadInfo padInfo = padInfoMapper.lockById(dto.getPadId());
         if (padInfo == null) {
             throw new RuntimeException("垫板不存在");
         }
@@ -245,6 +250,8 @@ public class PadInfoService {
             throw new RuntimeException("垫板已绑定在该分层");
         } else {
             adjustType = "REBIND";
+            // 换模预留生效期内禁止换层
+            padMoldReserveService.assertNotEffectivelyReserved(padInfo);
         }
 
         // 绑定/换绑目标层位须存在、未封锁且占用未达配额
@@ -269,7 +276,7 @@ public class PadInfoService {
 
     @Transactional(rollbackFor = Exception.class)
     public void unbindLayer(UnbindLayerDTO dto) {
-        PadInfo padInfo = padInfoMapper.selectById(dto.getPadId());
+        PadInfo padInfo = padInfoMapper.lockById(dto.getPadId());
         if (padInfo == null) {
             throw new RuntimeException("垫板不存在");
         }
@@ -277,6 +284,8 @@ public class PadInfoService {
         if ("SCRAPPED".equals(padInfo.getMaintenanceStatus())) {
             throw new RuntimeException("垫板【" + padInfo.getPadCode() + "】已报废出库，禁止解绑/回架操作");
         }
+        // 换模预留生效期内禁止解绑，预留板须留在原层位待换模上线
+        padMoldReserveService.assertNotEffectivelyReserved(padInfo);
 
         String oldLayerCode = padInfo.getShelfLayerCode();
         if (oldLayerCode == null || oldLayerCode.isEmpty()) {

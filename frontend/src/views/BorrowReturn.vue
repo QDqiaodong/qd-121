@@ -431,7 +431,7 @@ const getMaintenanceTagType = (status) => {
 const isPadAvailable = (pad) => !pad.maintenanceStatus || pad.maintenanceStatus === 'AVAILABLE'
 
 const isPadCheckoutable = (pad) =>
-  !!(pad.shelfLayerCode && pad.borrowStatus !== 'BORROWED' && isPadAvailable(pad))
+  !!(pad.shelfLayerCode && pad.borrowStatus !== 'BORROWED' && isPadAvailable(pad) && !pad.reserveId)
 const padOptionLabel = (pad) => {
   if (pad.maintenanceStatus === 'SCRAPPED') {
     return `${pad.padCode}（已报废出库，不可领用）`
@@ -441,6 +441,7 @@ const padOptionLabel = (pad) => {
   }
   if (!pad.shelfLayerCode) return `${pad.padCode}（未绑定层位，不可领用）`
   if (pad.borrowStatus === 'BORROWED') return `${pad.padCode}（领用中，不可重复领用）`
+  if (pad.reserveId) return `${pad.padCode}（已预留给模具 ${pad.reserveMoldCode || ''}，预留期内不可领用）`
   return `${pad.padCode}（${pad.moldType || '无模具'} / 层位：${pad.shelfLayerCode}）`
 }
 const selectedPad = computed(() =>
@@ -490,6 +491,8 @@ const openCheckout = async () => {
       ElMessage.warning(`该垫板当前为【${getMaintenanceLabel(target.maintenanceStatus)}】状态，不可领用`)
     } else if (target.borrowStatus === 'BORROWED') {
       ElMessage.warning('该垫板已领用且未归还，禁止重复领用')
+    } else if (target.reserveId) {
+      ElMessage.warning(`该垫板已预留给模具【${target.reserveMoldCode || ''}】，预留期内不可领用`)
     } else {
       ElMessage.warning('该垫板当前未在架，无法领用，请先绑定层位')
     }

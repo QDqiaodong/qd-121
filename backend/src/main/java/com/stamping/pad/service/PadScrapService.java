@@ -44,6 +44,7 @@ public class PadScrapService {
     private final PadBorrowRecordMapper borrowRecordMapper;
     private final PadMaintenanceRecordMapper maintenanceRecordMapper;
     private final LayerAdjustRecordMapper adjustRecordMapper;
+    private final PadMoldReserveService padMoldReserveService;
 
     public Page<PadScrapRecord> pageList(ScrapRecordQueryDTO query) {
         Page<PadScrapRecord> page = new Page<>(query.getPageNum(), query.getPageSize());
@@ -87,13 +88,16 @@ public class PadScrapService {
      */
     @Transactional(rollbackFor = Exception.class)
     public PadScrapRecord outbound(PadScrapDTO dto) {
-        PadInfo pad = padInfoMapper.selectById(dto.getPadId());
+        // 行锁垫板：与换模预留登记串行化，预留期内报废离架直接拦截
+        PadInfo pad = padInfoMapper.lockById(dto.getPadId());
         if (pad == null) {
             throw new RuntimeException("垫板不存在");
         }
         if (SCRAPPED.equals(pad.getMaintenanceStatus())) {
             throw new RuntimeException("垫板【" + pad.getPadCode() + "】已报废出库，禁止重复报废");
         }
+        // 存在未释放换模预留的垫板须先释放预留，避免预留台账无主、换模上线无板
+        padMoldReserveService.assertNotReservedForOffShelf(pad.getId(), pad.getPadCode());
         Long existCount = scrapRecordMapper.selectCount(
                 new LambdaQueryWrapper<PadScrapRecord>().eq(PadScrapRecord::getPadId, pad.getId()));
         if (existCount > 0) {

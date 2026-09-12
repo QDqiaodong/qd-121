@@ -1,0 +1,78 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.stamping.pad.mapper.PadMoldReserveRecordMapper">
+
+    <resultMap id="PadMoldReserveRecordResultMap" type="com.stamping.pad.entity.PadMoldReserveRecord">
+        <id column="id" property="id"/>
+        <result column="mold_code" property="moldCode"/>
+        <result column="mold_name" property="moldName"/>
+        <result column="production_line" property="productionLine"/>
+        <result column="start_time" property="startTime"/>
+        <result column="end_time" property="endTime"/>
+        <result column="operator" property="operator"/>
+        <result column="status" property="status"/>
+        <result column="release_time" property="releaseTime"/>
+        <result column="release_conclusion" property="releaseConclusion"/>
+        <result column="release_operator" property="releaseOperator"/>
+        <result column="remark" property="remark"/>
+        <result column="create_time" property="createTime"/>
+        <result column="update_time" property="updateTime"/>
+        <result column="pad_count" property="padCount"/>
+    </resultMap>
+
+    <select id="selectPageList" resultMap="PadMoldReserveRecordResultMap">
+        SELECT r.*, COUNT(ri.id) AS pad_count
+        FROM pad_mold_reserve_record r
+        LEFT JOIN pad_mold_reserve_item ri ON ri.reserve_id = r.id
+        <where>
+            <if test="query.status != null and query.status != ''">
+                AND r.status = #{query.status}
+            </if>
+            <if test="query.moldCode != null and query.moldCode != ''">
+                AND (r.mold_code LIKE CONCAT('%', #{query.moldCode}, '%')
+                     OR r.mold_name LIKE CONCAT('%', #{query.moldCode}, '%'))
+            </if>
+            <if test="query.operator != null and query.operator != ''">
+                AND r.operator LIKE CONCAT('%', #{query.operator}, '%')
+            </if>
+            <if test="query.padCode != null and query.padCode != ''">
+                AND EXISTS (SELECT 1 FROM pad_mold_reserve_item cri
+                            WHERE cri.reserve_id = r.id
+                              AND cri.pad_code LIKE CONCAT('%', #{query.padCode}, '%'))
+            </if>
+            <if test="query.startTime != null">
+                AND r.start_time &gt;= #{query.startTime}
+            </if>
+            <if test="query.endTime != null">
+                AND r.start_time &lt;= #{query.endTime}
+            </if>
+        </where>
+        GROUP BY r.id
+        ORDER BY r.start_time DESC, r.id DESC
+    </select>
+
+    <select id="selectDetailById" resultMap="PadMoldReserveRecordResultMap">
+        SELECT r.*, COUNT(ri.id) AS pad_count
+        FROM pad_mold_reserve_record r
+        LEFT JOIN pad_mold_reserve_item ri ON ri.reserve_id = r.id
+        WHERE r.id = #{id}
+        GROUP BY r.id
+    </select>
+
+    <update id="activatePendingReserves">
+        UPDATE pad_mold_reserve_record
+        SET status = 'ACTIVE', update_time = #{now}
+        WHERE status = 'PENDING' AND start_time &lt;= #{now} AND end_time &gt;= #{now}
+    </update>
+
+    <update id="expireDueReserves">
+        UPDATE pad_mold_reserve_record
+        SET status = 'EXPIRED',
+            release_time = end_time,
+            release_conclusion = '到期自动释放，垫板恢复可领',
+            release_operator = '系统',
+            update_time = #{now}
+        WHERE status IN ('PENDING', 'ACTIVE') AND end_time &lt; #{now}
+    </update>
+
+</mapper>
