@@ -42,4 +42,12 @@ public class ShelfLayer {
     /** 当前生效的封锁记录（非本表字段）：非空表示层位封锁中，禁止绑定/换绑/归还上架/导入占位 */
     @TableField(exist = false)
     private LayerBlockRecord activeBlock;
+
+    /** 当前生效的临时扩容记录（非本表字段）：非空表示层位扩容中，按扩容后配额校验 */
+    @TableField(exist = false)
+    private LayerCapacityExpandRecord activeExpand;
+
+    /** 当前实际配额（非本表字段）：扩容期内取扩容后配额，否则取 capacity；占用进度与可选范围统一按此展示 */
+    @TableField(exist = false)
+    private Integer effectiveCapacity;
 }

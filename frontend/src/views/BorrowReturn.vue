@@ -540,16 +540,19 @@ const returnRules = {
   returnLayerCode: [{ required: true, message: '请选择归还层位', trigger: 'change' }]
 }
 
-// 归还目标：已占用、已达容量配额或封锁中的层位不可选
-const isLayerFull = (layer) => (layer.padCount || 0) >= (layer.capacity ?? 0)
+// 归还目标：已占用、已达实际配额或封锁中的层位不可选
+// 实际配额：扩容期内取扩容后配额，到期/结束后回到原配额
+const effCap = (layer) => layer.effectiveCapacity ?? layer.capacity ?? 0
+const isLayerFull = (layer) => (layer.padCount || 0) >= effCap(layer)
 const isLayerBlocked = (layer) => !!layer.activeBlock
 const returnLayerLabel = (layer) => {
   const used = layer.padCount || 0
-  const capacity = layer.capacity ?? 0
+  const capacity = effCap(layer)
+  const expandTag = layer.activeExpand ? '扩容中 ' : ''
   if (isLayerBlocked(layer)) return `${layer.layerCode} - ${layer.layerName}（封锁中，不可归还）`
-  if (used > 0) return `${layer.layerCode} - ${layer.layerName}（已占用 ${used}/${capacity}）`
-  if (isLayerFull(layer)) return `${layer.layerCode} - ${layer.layerName}（已满 ${used}/${capacity}）`
-  return `${layer.layerCode} - ${layer.layerName}（空闲可用 ${used}/${capacity}）`
+  if (used > 0) return `${layer.layerCode} - ${layer.layerName}（${expandTag}已占用 ${used}/${capacity}）`
+  if (isLayerFull(layer)) return `${layer.layerCode} - ${layer.layerName}（${expandTag}已满 ${used}/${capacity}）`
+  return `${layer.layerCode} - ${layer.layerName}（${expandTag}空闲可用 ${used}/${capacity}）`
 }
 
 const openReturn = async (row) => {

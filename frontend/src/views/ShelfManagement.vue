@@ -40,6 +40,9 @@
                   <el-tag v-if="layer.activeBlock" type="danger" size="small" effect="dark">
                     封锁中
                   </el-tag>
+                  <el-tag v-if="layer.activeExpand" type="warning" size="small" effect="dark">
+                    扩容中
+                  </el-tag>
                 </div>
                 <div class="layer-name">{{ layer.layerName }}</div>
               </div>
@@ -59,6 +62,12 @@
                   <el-dropdown-item v-else command="release" divided>
                     解除封锁
                   </el-dropdown-item>
+                  <el-dropdown-item v-if="!layer.activeExpand" command="expand">
+                    临时扩容
+                  </el-dropdown-item>
+                  <el-dropdown-item v-else command="finishExpand">
+                    结束扩容
+                  </el-dropdown-item>
                   <el-dropdown-item command="delete" divided>删除分层</el-dropdown-item>
                 </el-dropdown-menu>
               </template>
@@ -73,11 +82,22 @@
             </span>
           </div>
 
+          <div v-if="layer.activeExpand" class="expand-banner">
+            <el-icon><TrendCharts /></el-icon>
+            <span>
+              临时扩容：{{ layer.activeExpand.expandReason }}
+              （配额 {{ layer.activeExpand.originalCapacity }} → {{ layer.activeExpand.expandCapacity }}，
+              {{ formatTime(layer.activeExpand.endTime) }} 到期 · 经办人 {{ layer.activeExpand.operator }}）
+            </span>
+          </div>
+
           <div class="layer-card-body">
             <div class="stat-row">
               <div class="stat-item">
                 <span class="stat-num">{{ layer.padCount || 0 }}</span>
-                <span class="stat-label">/ 容量 {{ layer.capacity ?? 0 }}</span>
+                <span class="stat-label">/ 配额 {{ effCap(layer) }}
+                  <template v-if="layer.activeExpand">（原 {{ layer.capacity ?? 0 }}）</template>
+                </span>
               </div>
               <div class="stat-item">
                 <el-tag v-if="layer.activeBlock" type="danger" size="large" effect="dark">
@@ -206,7 +226,10 @@
       <div class="dialog-toolbar">
         <div>
           <el-tag type="info">
-            在架 {{ currentViewLayer?.padCount || 0 }} / 容量 {{ currentViewLayer?.capacity ?? 0 }}
+            在架 {{ currentViewLayer?.padCount || 0 }} / 配额 {{ currentViewLayer ? effCap(currentViewLayer) : 0 }}
+          </el-tag>
+          <el-tag v-if="currentViewLayer?.activeExpand" type="warning" style="margin-left: 8px">
+            扩容中（原配额 {{ currentViewLayer?.capacity ?? 0 }}）
           </el-tag>
         </div>
         <el-button type="success" size="small" @click="handleExportLayer(currentViewLayer)">
@@ -295,9 +318,12 @@ const currentLayers = computed(() => {
   return allLayers.value.filter((l) => l.shelfCode === activeShelf.value)
 })
 
-// 容量占用按配额计算：0 空闲，<80% 有余量，<100% 将满，达到配额为已满
+// 实际配额：扩容期内取扩容后配额，否则取层位基础配额；占用进度与可选范围统一按此计算
+const effCap = (layer) => layer.effectiveCapacity ?? layer.capacity ?? 0
+
+// 容量占用按实际配额计算：0 空闲，<80% 有余量，<100% 将满，达到配额为已满
 const getUsagePercent = (layer) => {
-  const capacity = layer.capacity || 0
+  const capacity = effCap(layer)
   if (capacity <= 0) return (layer.padCount || 0) > 0 ? 100 : 0
   return Math.min(Math.round(((layer.padCount || 0) / capacity) * 100), 100)
 }
@@ -432,6 +458,14 @@ const handleCardAction = (cmd, layer) => {
       // 跳转折锁台账查看本层封锁记录并解除（解除必须填写结论）
       router.push({ path: '/layer-block', query: { layerCode: layer.layerCode, status: 'BLOCKED' } })
       break
+    case 'expand':
+      // 跳转扩容台账并预填本层，登记原因/新配额/生效时段/经办人
+      router.push({ path: '/layer-expand', query: { layerCode: layer.layerCode } })
+      break
+    case 'finishExpand':
+      // 跳转扩容台账查看本层扩容记录并提前结束（结束必须填写结论）
+      router.push({ path: '/layer-expand', query: { layerCode: layer.layerCode, status: 'ACTIVE' } })
+      break
     case 'delete':
       handleDeleteLayer(layer)
       break
@@ -512,6 +546,18 @@ onMounted(loadData)
       font-size: 12px;
       line-height: 1.5;
       border-bottom: 1px solid #fde2e2;
+    }
+
+    .expand-banner {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 8px 16px;
+      background: #fdf6ec;
+      color: #e6a23c;
+      font-size: 12px;
+      line-height: 1.5;
+      border-bottom: 1px solid #faecd8;
     }
 
     .layer-card-header {

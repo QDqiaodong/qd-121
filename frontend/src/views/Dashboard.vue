@@ -69,6 +69,9 @@
                           <el-tag v-if="layer.activeBlock" type="danger" size="small" effect="dark">
                             封锁中
                           </el-tag>
+                          <el-tag v-if="layer.activeExpand" type="warning" size="small" effect="dark">
+                            扩容中
+                          </el-tag>
                         </span>
                         <span class="layer-name">{{ layer.layerName }}</span>
                       </div>
@@ -82,7 +85,7 @@
                           :status="getUsageStatus(layer)"
                         />
                         <span class="count-num" :class="{ 'count-full': isLayerFull(layer) }">
-                          {{ layer.padCount }}/{{ layer.capacity ?? 0 }}
+                          {{ layer.padCount }}/{{ layer.effectiveCapacity ?? layer.capacity ?? 0 }}
                         </span>
                       </div>
                     </div>
@@ -185,9 +188,9 @@ const groupByShelf = (layers) => {
   return Object.values(map)
 }
 
-// 层位占用按容量配额计算百分比，已满层位标红提示
+// 层位占用按实际配额计算百分比（扩容期内取扩容后配额），已满层位标红提示
 const getUsagePercent = (layer) => {
-  const capacity = layer.capacity || 0
+  const capacity = layer.effectiveCapacity ?? layer.capacity ?? 0
   if (capacity <= 0) return (layer.padCount || 0) > 0 ? 100 : 0
   return Math.min(Math.round(((layer.padCount || 0) / capacity) * 100), 100)
 }

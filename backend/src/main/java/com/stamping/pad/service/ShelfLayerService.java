@@ -3,15 +3,18 @@ package com.stamping.pad.service;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.stamping.pad.entity.LayerBlockRecord;
+import com.stamping.pad.entity.LayerCapacityExpandRecord;
 import com.stamping.pad.entity.PadInfo;
 import com.stamping.pad.entity.ShelfLayer;
 import com.stamping.pad.mapper.LayerBlockRecordMapper;
+import com.stamping.pad.mapper.LayerCapacityExpandRecordMapper;
 import com.stamping.pad.mapper.ShelfLayerMapper;
 import com.stamping.pad.mapper.PadInfoMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
@@ -27,10 +30,12 @@ public class ShelfLayerService {
     private final ShelfLayerMapper shelfLayerMapper;
     private final PadInfoMapper padInfoMapper;
     private final LayerBlockRecordMapper layerBlockRecordMapper;
+    private final LayerCapacityExpandRecordMapper expandRecordMapper;
 
     public List<ShelfLayer> listAll() {
         List<ShelfLayer> layers = shelfLayerMapper.selectAllWithCount();
         fillActiveBlock(layers);
+        fillActiveExpand(layers);
         return layers;
     }
 
@@ -38,6 +43,7 @@ public class ShelfLayerService {
         Page<ShelfLayer> page = new Page<>(pageNum, pageSize);
         List<ShelfLayer> allLayers = shelfLayerMapper.selectAllWithCount();
         fillActiveBlock(allLayers);
+        fillActiveExpand(allLayers);
         int start = (int) ((pageNum - 1) * pageSize);
         int end = Math.min(start + pageSize.intValue(), allLayers.size());
         page.setRecords(allLayers.subList(start, end));
@@ -48,6 +54,7 @@ public class ShelfLayerService {
     public ShelfLayer getByCode(String layerCode) {
         ShelfLayer layer = shelfLayerMapper.selectByLayerCode(layerCode);
         fillActiveBlock(layer);
+        fillActiveExpand(layer);
         return layer;
     }
 
@@ -56,6 +63,7 @@ public class ShelfLayerService {
         if (layer != null) {
             layer.setPadList(padInfoMapper.selectByLayerCode(layer.getLayerCode()));
             fillActiveBlock(layer);
+            fillActiveExpand(layer);
         }
         return layer;
     }
@@ -75,6 +83,36 @@ public class ShelfLayerService {
             return;
         }
         fillActiveBlock(List.of(layer));
+    }
+
+    /** 回填层位当前生效的临时扩容记录与实际配额，前端按 activeExpand 标注“扩容中”并按新配额展示占用进度 */
+    private void fillActiveExpand(List<ShelfLayer> layers) {
+        if (layers == null || layers.isEmpty()) {
+            return;
+        }
+        Map<String, LayerCapacityExpandRecord> activeMap = expandRecordMapper
+                .selectEffectiveExpansions(LocalDateTime.now()).stream()
+                .collect(Collectors.toMap(LayerCapacityExpandRecord::getLayerCode, Function.identity(), (a, b) -> a));
+        layers.forEach(layer -> {
+            LayerCapacityExpandRecord expand = activeMap.get(layer.getLayerCode());
+            layer.setActiveExpand(expand);
+            layer.setEffectiveCapacity(effectiveCapacityOf(layer, expand));
+        });
+    }
+
+    private void fillActiveExpand(ShelfLayer layer) {
+        if (layer == null) {
+            return;
+        }
+        fillActiveExpand(List.of(layer));
+    }
+
+    /** 实际配额：扩容期内取扩容后配额，否则取层位基础配额 */
+    private int effectiveCapacityOf(ShelfLayer layer, LayerCapacityExpandRecord activeExpand) {
+        if (activeExpand != null && activeExpand.getExpandCapacity() != null) {
+            return activeExpand.getExpandCapacity();
+        }
+        return layer.getCapacity() == null ? 0 : layer.getCapacity();
     }
 
     @Transactional(rollbackFor = Exception.class)
@@ -116,8 +154,9 @@ public class ShelfLayerService {
     }
 
     /**
-     * 上架前校验：行锁目标层位（须在事务内调用），层位不存在、封锁中或占用已达配额时拒绝。
+     * 上架前校验：行锁目标层位（须在事务内调用），层位不存在、封锁中或占用已达实际配额时拒绝。
      * 绑定、换绑、新建档案带层位、归还上架、批量导入统一走此入口，保证不超配额、不占封锁层。
+     * 实际配额：扩容期内取临时扩容后的新配额，到期/提前结束后自动回到原配额。
      */
     public ShelfLayer lockAndAssertCapacity(String layerCode) {
         ShelfLayer layer = shelfLayerMapper.lockByLayerCode(layerCode);
@@ -126,11 +165,16 @@ public class ShelfLayerService {
         }
         assertNotBlocked(layerCode);
         int used = countOnShelf(layerCode);
-        int capacity = layer.getCapacity() == null ? 0 : layer.getCapacity();
+        // 扩容记录与层位行锁串行化（登记扩容同锁层位行），此处读到的即当前生效口径
+        LayerCapacityExpandRecord activeExpand =
+                expandRecordMapper.selectEffectiveExpansion(layerCode, LocalDateTime.now());
+        int capacity = effectiveCapacityOf(layer, activeExpand);
         if (used >= capacity) {
             throw new RuntimeException("层位【" + layerCode + "】已满（" + used + "/" + capacity + "），无法继续上架");
         }
         layer.setPadCount(used);
+        layer.setActiveExpand(activeExpand);
+        layer.setEffectiveCapacity(capacity);
         return layer;
     }
 
@@ -161,6 +205,16 @@ public class ShelfLayerService {
             if (blocked > 0) {
                 throw new RuntimeException("该分层处于封锁中，请先解除封锁后再删除");
             }
+            // 扩容中的层位须先结束扩容再删除，避免扩容台账留下无主记录
+            Long expanding = expandRecordMapper.selectCount(
+                    new LambdaQueryWrapper<LayerCapacityExpandRecord>()
+                            .eq(LayerCapacityExpandRecord::getLayerCode, layer.getLayerCode())
+                            .in(LayerCapacityExpandRecord::getStatus,
+                                    LayerCapacityExpandRecord.STATUS_PENDING,
+                                    LayerCapacityExpandRecord.STATUS_ACTIVE));
+            if (expanding > 0) {
+                throw new RuntimeException("该分层处于临时扩容中，请先结束扩容或待其到期后再删除");
+            }
             shelfLayerMapper.deleteById(id);
         }
     }
@@ -168,6 +222,7 @@ public class ShelfLayerService {
     public List<ShelfLayer> listGroupByShelf() {
         List<ShelfLayer> layers = shelfLayerMapper.selectAllWithCount();
         fillActiveBlock(layers);
+        fillActiveExpand(layers);
         for (ShelfLayer layer : layers) {
             layer.setPadList(padInfoMapper.selectByLayerCode(layer.getLayerCode()));
         }

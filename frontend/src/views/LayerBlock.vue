@@ -167,7 +167,7 @@
         </el-form-item>
         <el-form-item v-if="selectedLayer" label="当前占用">
           <el-tag type="info">
-            在架 {{ selectedLayer.padCount || 0 }} / 容量 {{ selectedLayer.capacity ?? 0 }}
+            在架 {{ selectedLayer.padCount || 0 }} / 配额 {{ selectedLayer.effectiveCapacity ?? selectedLayer.capacity ?? 0 }}
           </el-tag>
           <span class="form-tip">封锁期间该层禁止绑定、换绑、归还上架与导入占位</span>
         </el-form-item>
@@ -390,9 +390,10 @@ const selectedLayer = computed(() =>
   layerOptions.value.find((l) => l.layerCode === blockForm.layerCode)
 )
 
-// 已封锁层位禁用并标注，避免重复登记
+// 已封锁层位禁用并标注，避免重复登记；占用按实际配额展示（扩容期内取扩容后配额）
 const blockLayerOptionLabel = (layer) => {
-  const base = `${layer.layerCode} - ${layer.layerName || ''}（占用 ${layer.padCount || 0}/${layer.capacity ?? 0}）`
+  const effCap = layer.effectiveCapacity ?? layer.capacity ?? 0
+  const base = `${layer.layerCode} - ${layer.layerName || ''}（占用 ${layer.padCount || 0}/${effCap}）`
   return layer.activeBlock ? `${base}【已封锁中】` : base
 }
 

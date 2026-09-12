@@ -40,6 +40,10 @@
               <el-icon><Lock /></el-icon>
               <span>层位封锁管理</span>
             </el-menu-item>
+            <el-menu-item index="/layer-expand">
+              <el-icon><TrendCharts /></el-icon>
+              <span>层位临时扩容</span>
+            </el-menu-item>
             <el-menu-item index="/borrow">
               <el-icon><Van /></el-icon>
               <span>垫板领用归还</span>

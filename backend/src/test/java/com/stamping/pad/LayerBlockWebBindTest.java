@@ -4,6 +4,7 @@ import com.stamping.pad.dto.LayerBlockDTO;
 import com.stamping.pad.entity.LayerBlockRecord;
 import com.stamping.pad.entity.ShelfLayer;
 import com.stamping.pad.mapper.LayerBlockRecordMapper;
+import com.stamping.pad.mapper.LayerCapacityExpandRecordMapper;
 import com.stamping.pad.mapper.ShelfLayerMapper;
 import com.stamping.pad.service.LayerBlockService;
 import org.junit.jupiter.api.BeforeEach;
@@ -34,11 +35,14 @@ class LayerBlockWebBindTest {
     @Autowired
     private LayerBlockRecordMapper blockRecordMapper;
     @Autowired
+    private LayerCapacityExpandRecordMapper expandRecordMapper;
+    @Autowired
     private ShelfLayerMapper shelfLayerMapper;
 
     @BeforeEach
     void setUp() {
         blockRecordMapper.delete(null);
+        expandRecordMapper.delete(null);
         shelfLayerMapper.delete(null);
 
         ShelfLayer layer = new ShelfLayer();

@@ -1,0 +1,86 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.stamping.pad.mapper.LayerCapacityExpandRecordMapper">
+
+    <resultMap id="LayerCapacityExpandRecordResultMap" type="com.stamping.pad.entity.LayerCapacityExpandRecord">
+        <id column="id" property="id"/>
+        <result column="layer_id" property="layerId"/>
+        <result column="layer_code" property="layerCode"/>
+        <result column="expand_reason" property="expandReason"/>
+        <result column="original_capacity" property="originalCapacity"/>
+        <result column="expand_capacity" property="expandCapacity"/>
+        <result column="start_time" property="startTime"/>
+        <result column="end_time" property="endTime"/>
+        <result column="operator" property="operator"/>
+        <result column="status" property="status"/>
+        <result column="finish_time" property="finishTime"/>
+        <result column="finish_conclusion" property="finishConclusion"/>
+        <result column="finish_operator" property="finishOperator"/>
+        <result column="remark" property="remark"/>
+        <result column="create_time" property="createTime"/>
+        <result column="update_time" property="updateTime"/>
+        <result column="layer_name" property="layerName"/>
+        <result column="shelf_code" property="shelfCode"/>
+    </resultMap>
+
+    <select id="selectPageList" resultMap="LayerCapacityExpandRecordResultMap">
+        SELECT e.*, sl.layer_name AS layer_name, sl.shelf_code AS shelf_code
+        FROM layer_capacity_expand_record e
+        LEFT JOIN shelf_layer sl ON e.layer_code = sl.layer_code
+        <where>
+            <if test="query.status != null and query.status != ''">
+                AND e.status = #{query.status}
+            </if>
+            <if test="query.layerCode != null and query.layerCode != ''">
+                AND e.layer_code LIKE CONCAT('%', #{query.layerCode}, '%')
+            </if>
+            <if test="query.startTime != null">
+                AND e.start_time &gt;= #{query.startTime}
+            </if>
+            <if test="query.endTime != null">
+                AND e.start_time &lt;= #{query.endTime}
+            </if>
+        </where>
+        ORDER BY e.start_time DESC, e.id DESC
+    </select>
+
+    <!-- 实际生效 = 未结束（待生效/生效中）且当前时刻落在生效时段内；按时段判断，不依赖状态列是否已刷新 -->
+    <select id="selectEffectiveExpansions" resultMap="LayerCapacityExpandRecordResultMap">
+        SELECT e.*, sl.layer_name AS layer_name, sl.shelf_code AS shelf_code
+        FROM layer_capacity_expand_record e
+        LEFT JOIN shelf_layer sl ON e.layer_code = sl.layer_code
+        WHERE e.status IN ('PENDING', 'ACTIVE')
+          AND e.start_time &lt;= #{now}
+          AND e.end_time &gt;= #{now}
+        ORDER BY e.start_time DESC, e.id DESC
+    </select>
+
+    <select id="selectEffectiveExpansion" resultMap="LayerCapacityExpandRecordResultMap">
+        SELECT e.*, sl.layer_name AS layer_name, sl.shelf_code AS shelf_code
+        FROM layer_capacity_expand_record e
+        LEFT JOIN shelf_layer sl ON e.layer_code = sl.layer_code
+        WHERE e.layer_code = #{layerCode}
+          AND e.status IN ('PENDING', 'ACTIVE')
+          AND e.start_time &lt;= #{now}
+          AND e.end_time &gt;= #{now}
+        ORDER BY e.start_time DESC, e.id DESC
+        LIMIT 1
+    </select>
+
+    <update id="activatePendingExpansions">
+        UPDATE layer_capacity_expand_record
+        SET status = 'ACTIVE', update_time = #{now}
+        WHERE status = 'PENDING' AND start_time &lt;= #{now} AND end_time &gt;= #{now}
+    </update>
+
+    <update id="expireDueExpansions">
+        UPDATE layer_capacity_expand_record
+        SET status = 'EXPIRED',
+            finish_time = end_time,
+            finish_conclusion = '到期自动结束，恢复原配额',
+            finish_operator = '系统',
+            update_time = #{now}
+        WHERE status IN ('PENDING', 'ACTIVE') AND end_time &lt; #{now}
+    </update>
+
+</mapper>

@@ -32,6 +32,12 @@ const routes = [
     meta: { title: '层位封锁管理' }
   },
   {
+    path: '/layer-expand',
+    name: 'LayerCapacityExpand',
+    component: () => import('@/views/LayerCapacityExpand.vue'),
+    meta: { title: '层位临时扩容' }
+  },
+  {
     path: '/borrow',
     name: 'BorrowReturn',
     component: () => import('@/views/BorrowReturn.vue'),

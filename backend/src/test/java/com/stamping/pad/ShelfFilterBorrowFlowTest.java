@@ -7,6 +7,7 @@ import com.stamping.pad.entity.PadBorrowRecord;
 import com.stamping.pad.entity.PadInfo;
 import com.stamping.pad.entity.ShelfLayer;
 import com.stamping.pad.mapper.LayerBlockRecordMapper;
+import com.stamping.pad.mapper.LayerCapacityExpandRecordMapper;
 import com.stamping.pad.mapper.PadBorrowRecordMapper;
 import com.stamping.pad.mapper.PadInfoMapper;
 import com.stamping.pad.mapper.ShelfLayerMapper;
@@ -45,6 +46,8 @@ class ShelfFilterBorrowFlowTest {
     private PadBorrowRecordMapper padBorrowRecordMapper;
     @Autowired
     private LayerBlockRecordMapper blockRecordMapper;
+    @Autowired
+    private LayerCapacityExpandRecordMapper expandRecordMapper;
 
     private Long padA1;
     private Long padA2;
@@ -54,6 +57,7 @@ class ShelfFilterBorrowFlowTest {
     void setUp() {
         padBorrowRecordMapper.delete(null);
         blockRecordMapper.delete(null);
+        expandRecordMapper.delete(null);
         padInfoMapper.delete(null);
         shelfLayerMapper.delete(null);
 
