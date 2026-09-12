@@ -124,8 +124,17 @@
           </template>
           <template v-else-if="row.borrowStatus === 'BORROWED'">
             <el-tag type="warning" effect="dark">领用离架中</el-tag>
+            <el-tag v-if="row.borrowOverdue" type="danger" effect="dark" style="margin-left: 6px">
+              <el-icon style="margin-right: 2px; vertical-align: middle"><AlarmClock /></el-icon>已逾期
+            </el-tag>
             <div style="font-size: 12px; color: #e6a23c; margin-top: 2px">
               {{ row.borrower }} · {{ row.productionLine }}
+            </div>
+            <div
+              v-if="row.expectedReturnTime"
+              :style="{ fontSize: '12px', marginTop: '2px', color: row.borrowOverdue ? '#f56c6c' : '#909399' }"
+            >
+              应还 {{ formatTime(row.expectedReturnTime) }}
             </div>
           </template>
           <template v-else-if="row.shelfLayerCode">

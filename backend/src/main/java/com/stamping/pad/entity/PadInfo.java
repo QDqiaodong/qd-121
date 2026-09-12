@@ -59,6 +59,14 @@ public class PadInfo {
     @TableField(exist = false)
     private LocalDateTime checkoutTime;
 
+    /** 当前领用单的预计归还时间（联表查询，非本表字段） */
+    @TableField(exist = false)
+    private LocalDateTime expectedReturnTime;
+
+    /** 领用中且已过预计归还时间（联表查询，非本表字段）：true 表示逾期未还，需催还 */
+    @TableField(exist = false)
+    private Boolean borrowOverdue;
+
     /** 是否存在保养“报废建议”（联表/子查询，非本表字段） */
     @TableField(exist = false)
     private Boolean scrapSuggested;

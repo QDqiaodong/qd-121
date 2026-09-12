@@ -22,6 +22,8 @@
         <result column="borrower" property="borrower"/>
         <result column="production_line" property="productionLine"/>
         <result column="checkout_time_borrow" property="checkoutTime"/>
+        <result column="expected_return_time_borrow" property="expectedReturnTime"/>
+        <result column="borrow_overdue" property="borrowOverdue"/>
         <result column="scrap_suggested" property="scrapSuggested"/>
         <result column="reserve_id" property="reserveId"/>
         <result column="reserve_mold_code" property="reserveMoldCode"/>
@@ -31,6 +33,13 @@
         p.*, sl.layer_name, sl.shelf_code,
         br.status AS borrow_status, br.borrower, br.production_line,
         br.checkout_time AS checkout_time_borrow,
+        br.expected_return_time AS expected_return_time_borrow,
+        CASE
+            WHEN br.status = 'BORROWED'
+                 AND br.expected_return_time IS NOT NULL
+                 AND br.expected_return_time &lt; NOW()
+            THEN 1 ELSE 0
+        END AS borrow_overdue,
         EXISTS(SELECT 1 FROM pad_maintenance_record mr
                WHERE mr.pad_id = p.id AND mr.maintenance_result = 'SCRAPPED') AS scrap_suggested,
         (SELECT r.id FROM pad_mold_reserve_record r
