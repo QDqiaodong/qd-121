@@ -292,10 +292,13 @@ public class PadInfoService {
             throw new RuntimeException("垫板未绑定任何分层");
         }
 
-        padInfo.setShelfLayerCode(null);
-        padInfo.setBindTime(null);
-        padInfo.setUpdateTime(LocalDateTime.now());
-        padInfoMapper.updateById(padInfo);
+        // 垫板离架：显式 set null，避免 updateById 忽略空字段
+        LambdaUpdateWrapper<PadInfo> unbind = new LambdaUpdateWrapper<>();
+        unbind.eq(PadInfo::getId, padInfo.getId())
+                .set(PadInfo::getShelfLayerCode, null)
+                .set(PadInfo::getBindTime, null)
+                .set(PadInfo::getUpdateTime, LocalDateTime.now());
+        padInfoMapper.update(null, unbind);
 
         LayerAdjustRecord record = new LayerAdjustRecord();
         record.setPadId(padInfo.getId());

@@ -240,6 +240,8 @@ public class PadMoldReserveService {
 
     /**
      * 手工释放预留：必须填写释放结论；仅“待生效/生效中”记录可释放，条件更新防止并发重复释放。
+     * 待生效记录尚未生效，可立即释放，释放时间允许早于预留开始时间（换模计划取消场景）；
+     * 生效中记录仍要求释放时间不早于预留开始时间，避免台账出现矛盾时间线。
      * 释放后预留板立即恢复可领、可解绑换层。
      */
     @Transactional(rollbackFor = Exception.class)
@@ -262,7 +264,10 @@ public class PadMoldReserveService {
 
         LocalDateTime now = LocalDateTime.now();
         LocalDateTime releaseTime = dto.getReleaseTime() != null ? dto.getReleaseTime() : now;
-        if (releaseTime.isBefore(record.getStartTime())) {
+        // 尚未到开始时间的预留（待生效）可立即释放，释放时间自然早于开始时间，放行；
+        // 已到点开始生效的预留（按时间实时判断，不依赖状态列是否已惰性刷新）仍要求
+        // 释放时间不早于开始时间，保证台账时间线自洽
+        if (!record.getStartTime().isAfter(now) && releaseTime.isBefore(record.getStartTime())) {
             throw new RuntimeException("释放时间不能早于预留开始时间");
         }
         String releaseOperator = trim(dto.getReleaseOperator());

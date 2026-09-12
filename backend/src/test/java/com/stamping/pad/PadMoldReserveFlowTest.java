@@ -386,6 +386,64 @@ class PadMoldReserveFlowTest {
         assertEquals("ACTIVE", reserveRecordMapper.selectById(record.getId()).getStatus());
     }
 
+    /**
+     * 待生效预留可立即手工释放：当前时刻未到开始时间也放行（释放时间取当前，早于开始时间）；
+     * 释放后领用下拉、档案层位与台账列表状态同步恢复可领口径，垫板可领用、可解绑。
+     */
+    @Test
+    void pendingReserve_releaseImmediately_restoresBorrowable() {
+        layer("A-01-01", 10);
+        Long p1 = padOnShelf("P-001", "A-01-01");
+        Long p2 = padOnShelf("P-002", "A-01-01");
+        PadMoldReserveDTO dto = reserveDto(List.of(p1, p2));
+        dto.setStartTime(LocalDateTime.now().plusDays(1));
+        dto.setEndTime(LocalDateTime.now().plusDays(3));
+        PadMoldReserveRecord pending = reserveService.register(dto);
+        assertEquals("PENDING", pending.getStatus());
+
+        // 释放前：待生效同样锁板，领用被拦截，档案分页带出预留标识
+        assertThrows(RuntimeException.class, () -> padBorrowService.checkout(checkoutDto(p1, "李四")));
+        Page<PadInfo> before = padInfoMapper.selectPageList(new Page<>(1, 10),
+                new com.stamping.pad.dto.PadQueryDTO());
+        assertEquals(2, before.getRecords().size());
+        before.getRecords().forEach(pad -> assertEquals(pending.getId(), pad.getReserveId()));
+
+        // 当前时刻未到预留开始时间：手工释放直接成功，释放时间早于预留开始时间
+        PadMoldReserveReleaseDTO release = new PadMoldReserveReleaseDTO();
+        release.setId(pending.getId());
+        release.setReleaseConclusion("换模计划取消，提前释放");
+        PadMoldReserveRecord released = reserveService.release(release);
+        assertEquals("RELEASED", released.getStatus());
+        assertNotNull(released.getReleaseTime());
+        assertTrue(released.getReleaseTime().isBefore(released.getStartTime()));
+
+        // 领用下拉/档案口径恢复可领：预留标识清空，垫板仍在原层位、层位占用不变
+        Page<PadInfo> after = padInfoMapper.selectPageList(new Page<>(1, 10),
+                new com.stamping.pad.dto.PadQueryDTO());
+        assertEquals(2, after.getRecords().size());
+        after.getRecords().forEach(pad -> {
+            assertNull(pad.getReserveId());
+            assertNull(pad.getReserveMoldCode());
+            assertEquals("A-01-01", pad.getShelfLayerCode());
+        });
+        assertEquals(2, shelfLayerService.getByCode("A-01-01").getPadCount());
+
+        // 台账列表状态落为已释放
+        PadMoldReserveQueryDTO releasedQuery = new PadMoldReserveQueryDTO();
+        releasedQuery.setStatus("RELEASED");
+        Page<PadMoldReserveRecord> releasedPage = reserveService.pageList(releasedQuery);
+        assertEquals(1, releasedPage.getTotal());
+        assertEquals("RELEASED", releasedPage.getRecords().get(0).getStatus());
+
+        // 释放后立即可领用、可解绑
+        padBorrowService.checkout(checkoutDto(p1, "其他产线"));
+        assertNull(padInfoMapper.selectById(p1).getShelfLayerCode());
+        com.stamping.pad.dto.UnbindLayerDTO unbind = new com.stamping.pad.dto.UnbindLayerDTO();
+        unbind.setPadId(p2);
+        padInfoService.unbindLayer(unbind);
+        assertNull(padInfoMapper.selectById(p2).getShelfLayerCode());
+    }
+
     // ---------------- 台账回看 ----------------
 
     /** 台账按预留状态、模具、垫板编号与日期区间筛选，展开行带出预留板清单与当前状态 */

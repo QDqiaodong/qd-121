@@ -18,7 +18,7 @@ import java.util.List;
 @TableName("pad_mold_reserve_record")
 public class PadMoldReserveRecord {
 
-    /** 待生效：生效开始时间未到，垫板仍可领用/解绑 */
+    /** 待生效：生效开始时间未到，登记即锁板（禁止领用/解绑/换层），可手工释放立即解锁 */
     public static final String STATUS_PENDING = "PENDING";
     /** 生效中：预留板禁止领用、解绑与换层 */
     public static final String STATUS_ACTIVE = "ACTIVE";
