@@ -152,6 +152,13 @@
             归还
           </el-button>
           <el-tooltip
+            v-else-if="row.status === 'BORROWED' && row.maintenanceStatus === 'SCRAPPED'"
+            content="垫板已报废出库，禁止归还回架"
+            placement="top"
+          >
+            <el-button link type="primary" size="small" disabled>归还</el-button>
+          </el-tooltip>
+          <el-tooltip
             v-else-if="row.status === 'BORROWED'"
             content="待检/停用垫板不可作为归还目标，请先在保养台账恢复为可用"
             placement="top"
@@ -413,18 +420,22 @@ const checkoutFormRef = ref(null)
 const padLoading = ref(false)
 const allPads = ref([])
 
-const MAINTENANCE_LABELS = { AVAILABLE: '可用', PENDING: '待检', DISABLED: '停用' }
+const MAINTENANCE_LABELS = { AVAILABLE: '可用', PENDING: '待检', DISABLED: '停用', SCRAPPED: '已报废' }
 const getMaintenanceLabel = (status) => MAINTENANCE_LABELS[status] || '可用'
 const getMaintenanceTagType = (status) => {
   if (status === 'AVAILABLE' || !status) return 'success'
   if (status === 'PENDING') return 'warning'
-  return 'danger'
+  if (status === 'SCRAPPED') return 'danger'
+  return 'info'
 }
 const isPadAvailable = (pad) => !pad.maintenanceStatus || pad.maintenanceStatus === 'AVAILABLE'
 
 const isPadCheckoutable = (pad) =>
   !!(pad.shelfLayerCode && pad.borrowStatus !== 'BORROWED' && isPadAvailable(pad))
 const padOptionLabel = (pad) => {
+  if (pad.maintenanceStatus === 'SCRAPPED') {
+    return `${pad.padCode}（已报废出库，不可领用）`
+  }
   if (!isPadAvailable(pad)) {
     return `${pad.padCode}（${getMaintenanceLabel(pad.maintenanceStatus)}，不可领用）`
   }

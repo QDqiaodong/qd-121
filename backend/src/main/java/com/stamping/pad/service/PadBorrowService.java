@@ -176,7 +176,7 @@ public class PadBorrowService {
         return borrowRecordMapper.selectDetailById(record.getId());
     }
 
-    /** 待检/停用垫板不可领用，归还时也不可作为目标重新上架 */
+    /** 待检/停用/已报废垫板不可领用，归还时也不可作为目标重新上架 */
     private void assertPadUsable(PadInfo pad) {
         String status = pad.getMaintenanceStatus();
         if ("PENDING".equals(status)) {
@@ -184,6 +184,9 @@ public class PadBorrowService {
         }
         if ("DISABLED".equals(status)) {
             throw new RuntimeException("垫板【" + pad.getPadCode() + "】已停用，禁止领用/归还，请先在保养台账恢复");
+        }
+        if ("SCRAPPED".equals(status)) {
+            throw new RuntimeException("垫板【" + pad.getPadCode() + "】已报废出库，禁止领用/归还");
         }
     }
 

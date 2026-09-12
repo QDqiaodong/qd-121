@@ -150,7 +150,8 @@ const getAdjustTypeLabel = (type) => {
     REBIND: '变更绑定',
     UNBIND: '解除绑定',
     CHECKOUT: '领用离架',
-    RETURN: '归还上架'
+    RETURN: '归还上架',
+    SCRAP: '报废出库'
   }
   return map[type] || type
 }
@@ -161,7 +162,8 @@ const getAdjustTagType = (type) => {
     REBIND: 'warning',
     UNBIND: 'danger',
     CHECKOUT: 'warning',
-    RETURN: 'success'
+    RETURN: 'success',
+    SCRAP: 'danger'
   }
   return map[type] || 'info'
 }

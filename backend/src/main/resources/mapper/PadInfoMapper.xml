@@ -22,12 +22,19 @@
         <result column="borrower" property="borrower"/>
         <result column="production_line" property="productionLine"/>
         <result column="checkout_time_borrow" property="checkoutTime"/>
+        <result column="scrap_suggested" property="scrapSuggested"/>
     </resultMap>
 
+    <sql id="padExtraColumns">
+        p.*, sl.layer_name, sl.shelf_code,
+        br.status AS borrow_status, br.borrower, br.production_line,
+        br.checkout_time AS checkout_time_borrow,
+        EXISTS(SELECT 1 FROM pad_maintenance_record mr
+               WHERE mr.pad_id = p.id AND mr.maintenance_result = 'SCRAPPED') AS scrap_suggested
+    </sql>
+
     <select id="selectPageList" resultMap="PadInfoResultMap">
-        SELECT p.*, sl.layer_name, sl.shelf_code,
-               br.status AS borrow_status, br.borrower, br.production_line,
-               br.checkout_time AS checkout_time_borrow
+        SELECT <include refid="padExtraColumns"/>
         FROM pad_info p
         LEFT JOIN shelf_layer sl ON p.shelf_layer_code = sl.layer_code
         LEFT JOIN pad_borrow_record br ON br.pad_id = p.id AND br.status = 'BORROWED'
@@ -52,9 +59,7 @@
     </select>
 
     <select id="selectByLayerCode" resultMap="PadInfoResultMap">
-        SELECT p.*, sl.layer_name, sl.shelf_code,
-               br.status AS borrow_status, br.borrower, br.production_line,
-               br.checkout_time AS checkout_time_borrow
+        SELECT <include refid="padExtraColumns"/>
         FROM pad_info p
         LEFT JOIN shelf_layer sl ON p.shelf_layer_code = sl.layer_code
         LEFT JOIN pad_borrow_record br ON br.pad_id = p.id AND br.status = 'BORROWED'
@@ -63,9 +68,7 @@
     </select>
 
     <select id="selectByShelfCode" resultMap="PadInfoResultMap">
-        SELECT p.*, sl.layer_name, sl.shelf_code,
-               br.status AS borrow_status, br.borrower, br.production_line,
-               br.checkout_time AS checkout_time_borrow
+        SELECT <include refid="padExtraColumns"/>
         FROM pad_info p
         INNER JOIN shelf_layer sl ON p.shelf_layer_code = sl.layer_code
         LEFT JOIN pad_borrow_record br ON br.pad_id = p.id AND br.status = 'BORROWED'

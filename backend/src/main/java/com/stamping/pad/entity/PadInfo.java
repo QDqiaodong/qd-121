@@ -58,4 +58,8 @@ public class PadInfo {
 
     @TableField(exist = false)
     private LocalDateTime checkoutTime;
+
+    /** 是否存在保养“报废建议”（联表/子查询，非本表字段） */
+    @TableField(exist = false)
+    private Boolean scrapSuggested;
 }

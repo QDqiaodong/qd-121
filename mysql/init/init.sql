@@ -28,7 +28,7 @@ CREATE TABLE IF NOT EXISTS pad_info (
     image_path VARCHAR(512) DEFAULT NULL COMMENT '实物图片路径',
     shelf_layer_code VARCHAR(64) DEFAULT NULL COMMENT '当前绑定货架分层编码',
     bind_time DATETIME DEFAULT NULL COMMENT '绑定时间',
-    maintenance_status VARCHAR(24) NOT NULL DEFAULT 'AVAILABLE' COMMENT '保养状态：AVAILABLE-可用、PENDING-待检、DISABLED-停用',
+    maintenance_status VARCHAR(24) NOT NULL DEFAULT 'AVAILABLE' COMMENT '保养状态：AVAILABLE-可用、PENDING-待检、DISABLED-停用、SCRAPPED-已报废',
     create_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
     update_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
     remark VARCHAR(512) DEFAULT NULL COMMENT '备注',
@@ -65,7 +65,7 @@ CREATE TABLE IF NOT EXISTS layer_adjust_record (
     pad_code VARCHAR(64) NOT NULL COMMENT '垫板编号',
     old_layer_code VARCHAR(64) DEFAULT NULL COMMENT '原分层编码',
     new_layer_code VARCHAR(64) DEFAULT NULL COMMENT '新分层编码',
-    adjust_type VARCHAR(32) NOT NULL COMMENT '调整类型：BIND-初始绑定、REBIND-变更绑定、UNBIND-解绑、CHECKOUT-领用离架、RETURN-归还上架',
+    adjust_type VARCHAR(32) NOT NULL COMMENT '调整类型：BIND-初始绑定、REBIND-变更绑定、UNBIND-解绑、CHECKOUT-领用离架、RETURN-归还上架、SCRAP-报废出库',
     operator VARCHAR(64) DEFAULT NULL COMMENT '操作人',
     adjust_reason VARCHAR(512) DEFAULT NULL COMMENT '调整原因',
     adjust_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '调整时间',
@@ -126,6 +126,31 @@ CREATE TABLE IF NOT EXISTS pad_maintenance_record (
     KEY idx_pmr_status_after (status_after),
     KEY idx_pmr_maintenance_time (maintenance_time)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='垫板保养记录表';
+
+-- ------------------------------------------------------------
+-- 4.3 垫板报废出库记录表（幂等）
+-- 保养给出“报废建议”后，库房单独做报废出库：登记批准人、去向、时间与照片；
+-- 出库后垫板状态置为 SCRAPPED，层位立即释放，不能再被领用或回架
+-- ------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS pad_scrap_record (
+    id BIGINT NOT NULL AUTO_INCREMENT COMMENT '主键ID',
+    pad_id BIGINT NOT NULL COMMENT '垫板ID',
+    pad_code VARCHAR(64) NOT NULL COMMENT '垫板编号',
+    approver VARCHAR(64) NOT NULL COMMENT '批准人',
+    destination VARCHAR(128) NOT NULL COMMENT '报废去向：如废品仓、回收商、就地销毁',
+    scrap_time DATETIME NOT NULL COMMENT '报废出库时间',
+    photo_paths VARCHAR(2048) DEFAULT NULL COMMENT '报废照片路径，多张以英文逗号分隔',
+    origin_layer_code VARCHAR(64) DEFAULT NULL COMMENT '报废时所在层位（出库前原层位）',
+    maintenance_record_id BIGINT DEFAULT NULL COMMENT '关联的报废建议保养记录ID',
+    remark VARCHAR(512) DEFAULT NULL COMMENT '备注',
+    create_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    update_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    PRIMARY KEY (id),
+    UNIQUE KEY uk_psr_pad_id (pad_id),
+    KEY idx_psr_pad_code (pad_code),
+    KEY idx_psr_destination (destination),
+    KEY idx_psr_scrap_time (scrap_time)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='垫板报废出库记录表';
 
 -- ------------------------------------------------------------
 -- 5. 预置货架分层数据（幂等，INSERT IGNORE）

@@ -74,6 +74,7 @@
             <el-option label="可用" value="AVAILABLE" />
             <el-option label="待检" value="PENDING" />
             <el-option label="停用" value="DISABLED" />
+            <el-option label="已报废" value="SCRAPPED" />
           </el-select>
         </el-form-item>
         <el-form-item>
@@ -117,7 +118,11 @@
       </el-table-column>
       <el-table-column label="层位状态" width="180">
         <template #default="{ row }">
-          <template v-if="row.borrowStatus === 'BORROWED'">
+          <template v-if="isPadScrapped(row)">
+            <el-tag type="danger" effect="dark">已报废出库</el-tag>
+            <div style="font-size: 12px; color: #f56c6c; margin-top: 2px">档案冻结 · 不占层位</div>
+          </template>
+          <template v-else-if="row.borrowStatus === 'BORROWED'">
             <el-tag type="warning" effect="dark">领用离架中</el-tag>
             <div style="font-size: 12px; color: #e6a23c; margin-top: 2px">
               {{ row.borrower }} · {{ row.productionLine }}
@@ -144,73 +149,90 @@
           {{ formatTime(row.createTime) }}
         </template>
       </el-table-column>
-      <el-table-column label="操作" width="420" fixed="right">
+      <el-table-column label="操作" width="470" fixed="right">
         <template #default="{ row }">
-          <el-button
-            v-if="row.shelfLayerCode && row.borrowStatus !== 'BORROWED' && isPadAvailable(row)"
-            link
-            type="success"
-            size="small"
-            @click="handleCheckout(row)"
-          >
-            领用
-          </el-button>
-          <el-tooltip
-            v-else-if="row.shelfLayerCode && row.borrowStatus !== 'BORROWED'"
-            content="待检/停用垫板不可领用"
-            placement="top"
-          >
-            <el-button link type="success" size="small" disabled>领用</el-button>
-          </el-tooltip>
-          <el-button link type="primary" size="small" @click="handleMaintenance(row)">
-            保养
-          </el-button>
-          <el-button link type="primary" size="small" @click="handleViewRecord(row)">
-            调整记录
-          </el-button>
-          <el-tooltip
-            v-if="row.borrowStatus !== 'BORROWED' && !isPadAvailable(row)"
-            content="待检/停用垫板不可上架，请先在保养台账恢复为可用"
-            placement="top"
-          >
-            <el-button link type="primary" size="small" disabled>
+          <template v-if="isPadScrapped(row)">
+            <el-button link type="danger" size="small" @click="goScrap(row)">报废记录</el-button>
+            <el-tooltip content="已报废出库，档案冻结，禁止领用/回架/编辑/删除" placement="top">
+              <el-button link type="info" size="small" disabled>操作已冻结</el-button>
+            </el-tooltip>
+          </template>
+          <template v-else>
+            <el-button
+              v-if="row.shelfLayerCode && row.borrowStatus !== 'BORROWED' && isPadAvailable(row)"
+              link
+              type="success"
+              size="small"
+              @click="handleCheckout(row)"
+            >
+              领用
+            </el-button>
+            <el-tooltip
+              v-else-if="row.shelfLayerCode && row.borrowStatus !== 'BORROWED'"
+              content="待检/停用垫板不可领用"
+              placement="top"
+            >
+              <el-button link type="success" size="small" disabled>领用</el-button>
+            </el-tooltip>
+            <el-button link type="primary" size="small" @click="handleMaintenance(row)">
+              保养
+            </el-button>
+            <el-button
+              v-if="hasScrapSuggestion(row)"
+              link
+              type="danger"
+              size="small"
+              @click="handleScrapOutbound(row)"
+            >
+              报废出库
+            </el-button>
+            <el-button link type="primary" size="small" @click="handleViewRecord(row)">
+              调整记录
+            </el-button>
+            <el-tooltip
+              v-if="row.borrowStatus !== 'BORROWED' && !isPadAvailable(row)"
+              content="待检/停用垫板不可上架，请先在保养台账恢复为可用"
+              placement="top"
+            >
+              <el-button link type="primary" size="small" disabled>
+                {{ row.shelfLayerCode ? '重分配' : '绑定层位' }}
+              </el-button>
+            </el-tooltip>
+            <el-button
+              v-else
+              link
+              type="primary"
+              size="small"
+              :disabled="row.borrowStatus === 'BORROWED'"
+              @click="handleBind(row)"
+            >
               {{ row.shelfLayerCode ? '重分配' : '绑定层位' }}
             </el-button>
-          </el-tooltip>
-          <el-button
-            v-else
-            link
-            type="primary"
-            size="small"
-            :disabled="row.borrowStatus === 'BORROWED'"
-            @click="handleBind(row)"
-          >
-            {{ row.shelfLayerCode ? '重分配' : '绑定层位' }}
-          </el-button>
-          <el-button
-            v-if="row.shelfLayerCode"
-            link
-            type="warning"
-            size="small"
-            :disabled="row.borrowStatus === 'BORROWED'"
-            @click="handleUnbind(row)"
-          >
-            解绑
-          </el-button>
-          <el-button
-            link
-            type="primary"
-            size="small"
-            :disabled="row.borrowStatus === 'BORROWED'"
-            @click="handleEdit(row)"
-          >编辑</el-button>
-          <el-button
-            link
-            type="danger"
-            size="small"
-            :disabled="row.borrowStatus === 'BORROWED'"
-            @click="handleDelete(row)"
-          >删除</el-button>
+            <el-button
+              v-if="row.shelfLayerCode"
+              link
+              type="warning"
+              size="small"
+              :disabled="row.borrowStatus === 'BORROWED'"
+              @click="handleUnbind(row)"
+            >
+              解绑
+            </el-button>
+            <el-button
+              link
+              type="primary"
+              size="small"
+              :disabled="row.borrowStatus === 'BORROWED'"
+              @click="handleEdit(row)"
+            >编辑</el-button>
+            <el-button
+              link
+              type="danger"
+              size="small"
+              :disabled="row.borrowStatus === 'BORROWED'"
+              @click="handleDelete(row)"
+            >删除</el-button>
+          </template>
         </template>
       </el-table-column>
     </el-table>
@@ -535,18 +557,30 @@ const handleCheckout = (row) => {
   router.push({ path: '/borrow', query: { padId: row.id } })
 }
 
-// 保养台账：可用/待检/停用，仅可用垫板允许领用
-const MAINTENANCE_LABELS = { AVAILABLE: '可用', PENDING: '待检', DISABLED: '停用' }
+// 保养台账：可用/待检/停用/已报废，仅可用垫板允许领用
+const MAINTENANCE_LABELS = { AVAILABLE: '可用', PENDING: '待检', DISABLED: '停用', SCRAPPED: '已报废' }
 const getMaintenanceLabel = (status) => MAINTENANCE_LABELS[status] || '可用'
 const getMaintenanceTagType = (status) => {
   if (status === 'AVAILABLE' || !status) return 'success'
   if (status === 'PENDING') return 'warning'
-  return 'danger'
+  if (status === 'SCRAPPED') return 'danger'
+  return 'info'
 }
 const isPadAvailable = (pad) => !pad.maintenanceStatus || pad.maintenanceStatus === 'AVAILABLE'
+const isPadScrapped = (pad) => pad.maintenanceStatus === 'SCRAPPED'
+// 保养台账给出过“报废建议”的垫板，档案页提供报废出库快捷入口
+const hasScrapSuggestion = (pad) => !!pad.scrapSuggested && !isPadScrapped(pad)
 
 const handleMaintenance = (row) => {
   router.push({ path: '/maintenance', query: { padId: row.id, padCode: row.padCode } })
+}
+
+const handleScrapOutbound = (row) => {
+  router.push({ path: '/scrap', query: { padId: row.id } })
+}
+
+const goScrap = (row) => {
+  router.push({ path: '/scrap', query: { padCode: row.padCode } })
 }
 
 const formatTime = (time) => (time ? dayjs(time).format('YYYY-MM-DD HH:mm:ss') : '-')

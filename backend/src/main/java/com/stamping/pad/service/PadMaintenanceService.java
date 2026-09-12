@@ -32,6 +32,8 @@ public class PadMaintenanceService {
     private static final Set<String> RESULT_SET = Set.of("NORMAL", "REPAIRED", "ABNORMAL", "SCRAPPED");
     /** 登记为待检/停用时需自动离架，不再占用层位配额 */
     private static final Set<String> OFF_SHELF_STATUS = Set.of("PENDING", "DISABLED");
+    /** 报废终态：已报废出库的垫板档案冻结，不再接受保养登记 */
+    public static final String SCRAPPED = "SCRAPPED";
 
     private final PadMaintenanceRecordMapper maintenanceRecordMapper;
     private final PadInfoMapper padInfoMapper;
@@ -79,6 +81,9 @@ public class PadMaintenanceService {
         PadInfo pad = padInfoMapper.selectById(dto.getPadId());
         if (pad == null) {
             throw new RuntimeException("垫板不存在");
+        }
+        if (SCRAPPED.equals(pad.getMaintenanceStatus())) {
+            throw new RuntimeException("垫板【" + pad.getPadCode() + "】已报废出库，档案冻结，禁止再登记保养");
         }
         String statusAfter = dto.getStatusAfter() == null ? "" : dto.getStatusAfter().trim();
         if (!STATUS_SET.contains(statusAfter)) {
@@ -162,6 +167,7 @@ public class PadMaintenanceService {
         stats.put("availableCount", countByStatus("AVAILABLE"));
         stats.put("pendingCount", countByStatus("PENDING"));
         stats.put("disabledCount", countByStatus("DISABLED"));
+        stats.put("scrappedCount", countByStatus(SCRAPPED));
         return stats;
     }
 

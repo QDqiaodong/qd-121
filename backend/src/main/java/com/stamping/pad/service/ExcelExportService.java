@@ -108,6 +108,7 @@ public class ExcelExportService {
             case "UNBIND" -> "解除绑定";
             case "CHECKOUT" -> "领用离架";
             case "RETURN" -> "归还上架";
+            case "SCRAP" -> "报废出库";
             default -> type;
         };
     }

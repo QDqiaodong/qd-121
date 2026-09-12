@@ -7,31 +7,40 @@
       </el-button>
     </div>
 
-    <el-row :gutter="16" class="stat-row">
-      <el-col :span="8">
+    <el-row :gutter="12" class="stat-row">
+      <el-col :span="6">
         <div class="stat-card card-available" @click="quickFilter('AVAILABLE')">
-          <div class="stat-icon"><el-icon :size="30"><CircleCheck /></el-icon></div>
+          <div class="stat-icon"><el-icon :size="28"><CircleCheck /></el-icon></div>
           <div class="stat-text">
             <div class="stat-label">可用</div>
             <div class="stat-value">{{ stats.availableCount || 0 }}</div>
           </div>
         </div>
       </el-col>
-      <el-col :span="8">
+      <el-col :span="6">
         <div class="stat-card card-pending" @click="quickFilter('PENDING')">
-          <div class="stat-icon"><el-icon :size="30"><Clock /></el-icon></div>
+          <div class="stat-icon"><el-icon :size="28"><Clock /></el-icon></div>
           <div class="stat-text">
             <div class="stat-label">待检</div>
             <div class="stat-value">{{ stats.pendingCount || 0 }}</div>
           </div>
         </div>
       </el-col>
-      <el-col :span="8">
+      <el-col :span="6">
         <div class="stat-card card-disabled" @click="quickFilter('DISABLED')">
-          <div class="stat-icon"><el-icon :size="30"><CircleClose /></el-icon></div>
+          <div class="stat-icon"><el-icon :size="28"><CircleClose /></el-icon></div>
           <div class="stat-text">
             <div class="stat-label">停用</div>
             <div class="stat-value">{{ stats.disabledCount || 0 }}</div>
+          </div>
+        </div>
+      </el-col>
+      <el-col :span="6">
+        <div class="stat-card card-scrapped" @click="goScrap">
+          <div class="stat-icon"><el-icon :size="28"><Delete /></el-icon></div>
+          <div class="stat-text">
+            <div class="stat-label">已报废出库</div>
+            <div class="stat-value">{{ stats.scrappedCount || 0 }}</div>
           </div>
         </div>
       </el-col>
@@ -44,6 +53,7 @@
             <el-option label="可用" value="AVAILABLE" />
             <el-option label="待检" value="PENDING" />
             <el-option label="停用" value="DISABLED" />
+            <el-option label="已报废" value="SCRAPPED" />
           </el-select>
         </el-form-item>
         <el-form-item label="垫板编号">
@@ -121,9 +131,18 @@
       <el-table-column prop="remark" label="备注" min-width="150" show-overflow-tooltip>
         <template #default="{ row }">{{ row.remark || '-' }}</template>
       </el-table-column>
-      <el-table-column label="操作" width="100" fixed="right">
+      <el-table-column label="操作" width="160" fixed="right">
         <template #default="{ row }">
           <el-button link type="primary" size="small" @click="openDetail(row)">详情</el-button>
+          <el-button
+            v-if="row.maintenanceResult === 'SCRAPPED' && row.currentStatus !== 'SCRAPPED'"
+            link
+            type="danger"
+            size="small"
+            @click="goScrapOutbound(row)"
+          >
+            报废出库
+          </el-button>
         </template>
       </el-table-column>
     </el-table>
@@ -161,6 +180,7 @@
               :key="pad.id"
               :label="padOptionLabel(pad)"
               :value="pad.id"
+              :disabled="isPadScrapped(pad)"
             />
           </el-select>
         </el-form-item>
@@ -338,7 +358,7 @@
 
 <script setup>
 import { ref, reactive, computed, onMounted } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import dayjs from 'dayjs'
 import {
@@ -354,21 +374,23 @@ const submitting = ref(false)
 const tableData = ref([])
 const dateRange = ref([])
 const route = useRoute()
-const stats = reactive({ availableCount: 0, pendingCount: 0, disabledCount: 0 })
+const router = useRouter()
+const stats = reactive({ availableCount: 0, pendingCount: 0, disabledCount: 0, scrappedCount: 0 })
 
 const searchForm = reactive({ status: '', padCode: '' })
 const pagination = reactive({ pageNum: 1, pageSize: 10, total: 0 })
 
 const formatTime = (time) => (time ? dayjs(time).format('YYYY-MM-DD HH:mm:ss') : '-')
 
-const STATUS_LABELS = { AVAILABLE: '可用', PENDING: '待检', DISABLED: '停用' }
+const STATUS_LABELS = { AVAILABLE: '可用', PENDING: '待检', DISABLED: '停用', SCRAPPED: '已报废' }
 const RESULT_LABELS = { NORMAL: '正常', REPAIRED: '已修复', ABNORMAL: '异常待处理', SCRAPPED: '报废建议' }
 const getStatusLabel = (status) => STATUS_LABELS[status] || '可用'
 const getResultLabel = (result) => RESULT_LABELS[result] || result
 const getStatusTagType = (status) => {
   if (status === 'AVAILABLE') return 'success'
   if (status === 'PENDING') return 'warning'
-  if (status === 'DISABLED') return 'danger'
+  if (status === 'DISABLED') return 'info'
+  if (status === 'SCRAPPED') return 'danger'
   return 'info'
 }
 const getResultTagType = (result) => {
@@ -380,8 +402,15 @@ const getResultTagType = (result) => {
 const getTimelineType = (status) => {
   if (status === 'AVAILABLE') return 'success'
   if (status === 'PENDING') return 'warning'
+  if (status === 'SCRAPPED') return 'danger'
   return 'danger'
 }
+
+// 报废建议记录快捷跳转报废出库（携带 padId 直接打开登记弹窗）
+const goScrapOutbound = (row) => {
+  router.push({ path: '/scrap', query: { padId: row.padId } })
+}
+const goScrap = () => router.push('/scrap')
 
 const buildQuery = () => {
   const query = { ...searchForm, ...pagination }
@@ -460,8 +489,11 @@ const willAutoOffShelf = computed(() => {
   return registerForm.statusAfter === 'PENDING' || registerForm.statusAfter === 'DISABLED'
 })
 
+const isPadScrapped = (pad) => pad.maintenanceStatus === 'SCRAPPED'
+
 const padOptionLabel = (pad) => {
   const status = getStatusLabel(pad.maintenanceStatus)
+  if (isPadScrapped(pad)) return `${pad.padCode}（已报废出库，禁止保养登记）`
   return `${pad.padCode}（${pad.moldType || '无模具'} / ${status}）`
 }
 
@@ -607,6 +639,9 @@ onMounted(async () => {
   }
   &.card-disabled {
     background: linear-gradient(135deg, #6b7280 0%, #4b5563 100%);
+  }
+  &.card-scrapped {
+    background: linear-gradient(135deg, #7f1d1d 0%, #b91c1c 100%);
   }
 
   .stat-label {

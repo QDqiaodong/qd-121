@@ -31,6 +31,7 @@
             <el-option label="解除绑定" value="UNBIND" />
             <el-option label="领用离架" value="CHECKOUT" />
             <el-option label="归还上架" value="RETURN" />
+            <el-option label="报废出库" value="SCRAP" />
           </el-select>
         </el-form-item>
         <el-form-item label="调整时间">
@@ -114,7 +115,8 @@ import {
   Close,
   Right,
   Promotion,
-  Van
+  Van,
+  Delete
 } from '@element-plus/icons-vue'
 import { exportRecords, getRecordPage } from '@/api/record'
 import { downloadBlob, getFileNameFromDisposition } from '@/utils/download'
@@ -143,7 +145,8 @@ const getAdjustTypeLabel = (type) => {
     REBIND: '变更绑定',
     UNBIND: '解除绑定',
     CHECKOUT: '领用离架',
-    RETURN: '归还上架'
+    RETURN: '归还上架',
+    SCRAP: '报废出库'
   }
   return map[type] || type
 }
@@ -154,7 +157,8 @@ const getAdjustTagType = (type) => {
     REBIND: 'warning',
     UNBIND: 'danger',
     CHECKOUT: 'warning',
-    RETURN: 'success'
+    RETURN: 'success',
+    SCRAP: 'danger'
   }
   return map[type] || 'info'
 }
@@ -165,7 +169,8 @@ const getAdjustIcon = (type) => {
     REBIND: RefreshRight,
     UNBIND: Close,
     CHECKOUT: Promotion,
-    RETURN: Van
+    RETURN: Van,
+    SCRAP: Delete
   }
   return map[type] || Warning
 }

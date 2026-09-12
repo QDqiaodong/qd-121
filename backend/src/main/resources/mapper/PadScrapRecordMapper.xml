@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.stamping.pad.mapper.PadScrapRecordMapper">
+
+    <resultMap id="ScrapRecordResultMap" type="com.stamping.pad.entity.PadScrapRecord">
+        <id column="id" property="id"/>
+        <result column="pad_id" property="padId"/>
+        <result column="pad_code" property="padCode"/>
+        <result column="approver" property="approver"/>
+        <result column="destination" property="destination"/>
+        <result column="scrap_time" property="scrapTime"/>
+        <result column="photo_paths" property="photoPaths"/>
+        <result column="origin_layer_code" property="originLayerCode"/>
+        <result column="maintenance_record_id" property="maintenanceRecordId"/>
+        <result column="remark" property="remark"/>
+        <result column="create_time" property="createTime"/>
+        <result column="update_time" property="updateTime"/>
+        <result column="mold_type" property="moldType"/>
+    </resultMap>
+
+    <sql id="baseColumns">
+        s.id, s.pad_id, s.pad_code, s.approver, s.destination, s.scrap_time,
+        s.photo_paths, s.origin_layer_code, s.maintenance_record_id, s.remark,
+        s.create_time, s.update_time, p.mold_type
+    </sql>
+
+    <select id="selectPageList" resultMap="ScrapRecordResultMap">
+        SELECT <include refid="baseColumns"/>
+        FROM pad_scrap_record s
+        LEFT JOIN pad_info p ON s.pad_id = p.id
+        <where>
+            <if test="query.padCode != null and query.padCode != ''">
+                AND s.pad_code LIKE CONCAT('%', #{query.padCode}, '%')
+            </if>
+            <if test="query.destination != null and query.destination != ''">
+                AND s.destination LIKE CONCAT('%', #{query.destination}, '%')
+            </if>
+            <if test="query.approver != null and query.approver != ''">
+                AND s.approver LIKE CONCAT('%', #{query.approver}, '%')
+            </if>
+            <if test="query.startTime != null">
+                AND s.scrap_time &gt;= #{query.startTime}
+            </if>
+            <if test="query.endTime != null">
+                AND s.scrap_time &lt;= #{query.endTime}
+            </if>
+        </where>
+        ORDER BY s.scrap_time DESC, s.id DESC
+    </select>
+
+    <select id="selectDetailById" resultMap="ScrapRecordResultMap">
+        SELECT <include refid="baseColumns"/>
+        FROM pad_scrap_record s
+        LEFT JOIN pad_info p ON s.pad_id = p.id
+        WHERE s.id = #{id}
+    </select>
+
+</mapper>

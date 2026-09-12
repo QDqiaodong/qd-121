@@ -42,7 +42,7 @@ public class PadInfoService {
         }
     }
 
-    /** 待检/停用垫板不允许上架（绑定/换绑/编辑换层），登记保养时已自动离架，须先恢复为可用 */
+    /** 待检/停用/已报废垫板不允许上架（绑定/换绑/编辑换层），登记保养时已自动离架，须先恢复为可用 */
     private void assertPadBindable(PadInfo pad) {
         String status = pad.getMaintenanceStatus();
         if ("PENDING".equals(status)) {
@@ -50,6 +50,9 @@ public class PadInfoService {
         }
         if ("DISABLED".equals(status)) {
             throw new RuntimeException("垫板【" + pad.getPadCode() + "】已停用，不可上架，请先在保养台账恢复为可用");
+        }
+        if ("SCRAPPED".equals(status)) {
+            throw new RuntimeException("垫板【" + pad.getPadCode() + "】已报废出库，禁止重新上架");
         }
     }
 
@@ -135,6 +138,10 @@ public class PadInfoService {
         if (existing == null) {
             throw new RuntimeException("垫板不存在");
         }
+        // 已报废出库的档案冻结，禁止编辑（报废台账留存）
+        if ("SCRAPPED".equals(existing.getMaintenanceStatus())) {
+            throw new RuntimeException("垫板【" + existing.getPadCode() + "】已报废出库，档案冻结，禁止编辑");
+        }
 
         if (!existing.getPadCode().equals(dto.getPadCode())) {
             LambdaQueryWrapper<PadInfo> wrapper = new LambdaQueryWrapper<>();
@@ -211,6 +218,9 @@ public class PadInfoService {
             throw new RuntimeException("垫板不存在");
         }
         assertNotBorrowed(id);
+        if ("SCRAPPED".equals(padInfo.getMaintenanceStatus())) {
+            throw new RuntimeException("垫板已报废出库，档案随报废台账留存，禁止删除");
+        }
         if (padInfo.getShelfLayerCode() != null && !padInfo.getShelfLayerCode().isEmpty()) {
             throw new RuntimeException("请先解绑货架分层后再删除垫板");
         }
@@ -264,6 +274,9 @@ public class PadInfoService {
             throw new RuntimeException("垫板不存在");
         }
         assertNotBorrowed(padInfo.getId());
+        if ("SCRAPPED".equals(padInfo.getMaintenanceStatus())) {
+            throw new RuntimeException("垫板【" + padInfo.getPadCode() + "】已报废出库，禁止解绑/回架操作");
+        }
 
         String oldLayerCode = padInfo.getShelfLayerCode();
         if (oldLayerCode == null || oldLayerCode.isEmpty()) {

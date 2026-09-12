@@ -38,6 +38,12 @@ const routes = [
     meta: { title: '垫板保养台账' }
   },
   {
+    path: '/scrap',
+    name: 'ScrapOutbound',
+    component: () => import('@/views/ScrapOutbound.vue'),
+    meta: { title: '垫板报废出库' }
+  },
+  {
     path: '/record',
     name: 'AdjustRecord',
     component: () => import('@/views/AdjustRecord.vue'),

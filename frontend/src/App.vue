@@ -44,6 +44,10 @@
               <el-icon><Tools /></el-icon>
               <span>垫板保养台账</span>
             </el-menu-item>
+            <el-menu-item index="/scrap">
+              <el-icon><Delete /></el-icon>
+              <span>垫板报废出库</span>
+            </el-menu-item>
             <el-menu-item index="/record">
               <el-icon><Document /></el-icon>
               <span>调整记录台账</span>

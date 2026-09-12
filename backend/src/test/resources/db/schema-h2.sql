@@ -9,7 +9,7 @@ CREATE TABLE IF NOT EXISTS pad_info (
     image_path VARCHAR(512) DEFAULT NULL COMMENT '实物图片路径',
     shelf_layer_code VARCHAR(64) DEFAULT NULL COMMENT '当前绑定货架分层编码',
     bind_time DATETIME DEFAULT NULL COMMENT '绑定时间',
-    maintenance_status VARCHAR(24) NOT NULL DEFAULT 'AVAILABLE' COMMENT '保养状态：AVAILABLE-可用、PENDING-待检、DISABLED-停用',
+    maintenance_status VARCHAR(24) NOT NULL DEFAULT 'AVAILABLE' COMMENT '保养状态：AVAILABLE-可用、PENDING-待检、DISABLED-停用、SCRAPPED-已报废',
     create_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
     update_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '更新时间',
     remark VARCHAR(512) DEFAULT NULL COMMENT '备注',
@@ -83,3 +83,23 @@ CREATE TABLE IF NOT EXISTS pad_maintenance_record (
 CREATE INDEX IF NOT EXISTS idx_pmr_pad_id ON pad_maintenance_record (pad_id);
 CREATE INDEX IF NOT EXISTS idx_pmr_status_after ON pad_maintenance_record (status_after);
 CREATE INDEX IF NOT EXISTS idx_pmr_maintenance_time ON pad_maintenance_record (maintenance_time);
+
+CREATE TABLE IF NOT EXISTS pad_scrap_record (
+    id BIGINT NOT NULL AUTO_INCREMENT COMMENT '主键ID',
+    pad_id BIGINT NOT NULL COMMENT '垫板ID',
+    pad_code VARCHAR(64) NOT NULL COMMENT '垫板编号',
+    approver VARCHAR(64) NOT NULL COMMENT '批准人',
+    destination VARCHAR(128) NOT NULL COMMENT '报废去向',
+    scrap_time DATETIME NOT NULL COMMENT '报废出库时间',
+    photo_paths VARCHAR(2048) DEFAULT NULL COMMENT '报废照片路径，多张以英文逗号分隔',
+    origin_layer_code VARCHAR(64) DEFAULT NULL COMMENT '报废时所在层位',
+    maintenance_record_id BIGINT DEFAULT NULL COMMENT '关联的报废建议保养记录ID',
+    remark VARCHAR(512) DEFAULT NULL COMMENT '备注',
+    create_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    update_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '更新时间',
+    PRIMARY KEY (id),
+    UNIQUE KEY uk_psr_pad_id (pad_id)
+);
+CREATE INDEX IF NOT EXISTS idx_psr_pad_code ON pad_scrap_record (pad_code);
+CREATE INDEX IF NOT EXISTS idx_psr_destination ON pad_scrap_record (destination);
+CREATE INDEX IF NOT EXISTS idx_psr_scrap_time ON pad_scrap_record (scrap_time);
