@@ -37,6 +37,9 @@
               <div>
                 <div class="layer-code">
                   {{ layer.layerCode }}
+                  <el-tag v-if="reservedPads(layer).length > 0" type="warning" size="small" effect="dark">
+                    预留 {{ reservedPads(layer).length }} 块
+                  </el-tag>
                   <el-tag v-if="layer.activeBlock" type="danger" size="small" effect="dark">
                     封锁中
                   </el-tag>
