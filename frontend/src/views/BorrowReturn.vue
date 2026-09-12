@@ -285,7 +285,7 @@
         <el-form-item label="归还层位" prop="returnLayerCode">
           <el-select
             v-model="returnForm.returnLayerCode"
-            placeholder="请选择可用层位（已占用/已满层位不可选）"
+            placeholder="请选择可用层位（已占用/已满/封锁层位不可选）"
             style="width: 100%"
           >
             <el-option
@@ -293,7 +293,7 @@
               :key="layer.layerCode"
               :label="returnLayerLabel(layer)"
               :value="layer.layerCode"
-              :disabled="layer.padCount > 0 || isLayerFull(layer)"
+              :disabled="layer.padCount > 0 || isLayerFull(layer) || isLayerBlocked(layer)"
             />
           </el-select>
         </el-form-item>
@@ -540,11 +540,13 @@ const returnRules = {
   returnLayerCode: [{ required: true, message: '请选择归还层位', trigger: 'change' }]
 }
 
-// 归还目标：已占用或已达容量配额的层位不可选
+// 归还目标：已占用、已达容量配额或封锁中的层位不可选
 const isLayerFull = (layer) => (layer.padCount || 0) >= (layer.capacity ?? 0)
+const isLayerBlocked = (layer) => !!layer.activeBlock
 const returnLayerLabel = (layer) => {
   const used = layer.padCount || 0
   const capacity = layer.capacity ?? 0
+  if (isLayerBlocked(layer)) return `${layer.layerCode} - ${layer.layerName}（封锁中，不可归还）`
   if (used > 0) return `${layer.layerCode} - ${layer.layerName}（已占用 ${used}/${capacity}）`
   if (isLayerFull(layer)) return `${layer.layerCode} - ${layer.layerName}（已满 ${used}/${capacity}）`
   return `${layer.layerCode} - ${layer.layerName}（空闲可用 ${used}/${capacity}）`
@@ -575,6 +577,10 @@ const submitReturn = async () => {
   }
   if (layer && isLayerFull(layer)) {
     ElMessage.warning('该层位已达容量配额，请选择其他可用层位')
+    return
+  }
+  if (layer && isLayerBlocked(layer)) {
+    ElMessage.warning('该层位处于封锁中，请选择其他可用层位')
     return
   }
   submitting.value = true

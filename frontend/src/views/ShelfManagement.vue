@@ -29,12 +29,18 @@
           v-for="layer in currentLayers"
           :key="layer.layerCode"
           class="layer-card"
+          :class="{ 'layer-blocked': layer.activeBlock }"
         >
           <div class="layer-card-header">
             <div class="layer-title">
               <el-icon :size="20" color="#1e3a8a"><Collection /></el-icon>
               <div>
-                <div class="layer-code">{{ layer.layerCode }}</div>
+                <div class="layer-code">
+                  {{ layer.layerCode }}
+                  <el-tag v-if="layer.activeBlock" type="danger" size="small" effect="dark">
+                    封锁中
+                  </el-tag>
+                </div>
                 <div class="layer-name">{{ layer.layerName }}</div>
               </div>
             </div>
@@ -47,10 +53,24 @@
                   <el-dropdown-item command="view">查看垫板详情</el-dropdown-item>
                   <el-dropdown-item command="export">导出本层清单</el-dropdown-item>
                   <el-dropdown-item command="edit">编辑分层</el-dropdown-item>
+                  <el-dropdown-item v-if="!layer.activeBlock" command="block" divided>
+                    登记封锁
+                  </el-dropdown-item>
+                  <el-dropdown-item v-else command="release" divided>
+                    解除封锁
+                  </el-dropdown-item>
                   <el-dropdown-item command="delete" divided>删除分层</el-dropdown-item>
                 </el-dropdown-menu>
               </template>
             </el-dropdown>
+          </div>
+
+          <div v-if="layer.activeBlock" class="block-banner">
+            <el-icon><Lock /></el-icon>
+            <span>
+              {{ getBlockTypeLabel(layer.activeBlock.blockType) }}：{{ layer.activeBlock.blockReason }}
+              （{{ formatTime(layer.activeBlock.startTime) }} 起 · 经办人 {{ layer.activeBlock.operator }}）
+            </span>
           </div>
 
           <div class="layer-card-body">
@@ -60,7 +80,10 @@
                 <span class="stat-label">/ 容量 {{ layer.capacity ?? 0 }}</span>
               </div>
               <div class="stat-item">
-                <el-tag :type="getCapacityType(layer)" size="large">
+                <el-tag v-if="layer.activeBlock" type="danger" size="large" effect="dark">
+                  封锁中
+                </el-tag>
+                <el-tag v-else :type="getCapacityType(layer)" size="large">
                   {{ getCapacityLabel(layer) }}
                 </el-tag>
               </div>
@@ -104,7 +127,16 @@
               <div v-else class="empty-layer">
                 <el-icon :size="40" color="#dcdfe6"><Box /></el-icon>
                 <div>暂无垫板</div>
-                <el-button type="primary" link size="small" @click="goToAddPad(layer)">
+                <el-tooltip
+                  v-if="layer.activeBlock"
+                  content="层位封锁中，解除封锁后才能上架垫板"
+                  placement="top"
+                >
+                  <el-button type="info" link size="small" disabled>
+                    添加垫板到此层
+                  </el-button>
+                </el-tooltip>
+                <el-button v-else type="primary" link size="small" @click="goToAddPad(layer)">
                   添加垫板到此层
                 </el-button>
               </div>
@@ -242,6 +274,10 @@ const padListDialogVisible = ref(false)
 const currentViewLayer = ref(null)
 
 const formatTime = (time) => (time ? dayjs(time).format('YYYY-MM-DD HH:mm:ss') : '-')
+
+// 层位封锁类型：与封锁台账字典一致
+const BLOCK_TYPE_LABELS = { DAMAGE: '层位破损', CLEANING: '待清扫', MAINTENANCE: '检修中', OTHER: '其他' }
+const getBlockTypeLabel = (type) => BLOCK_TYPE_LABELS[type] || type
 
 const shelfGroups = computed(() => {
   const map = {}
@@ -388,6 +424,14 @@ const handleCardAction = (cmd, layer) => {
       Object.assign(layerForm, JSON.parse(JSON.stringify(layer)))
       layerDialogVisible.value = true
       break
+    case 'block':
+      // 跳转封锁台账并预填本层，登记原因/开始时间/经办人
+      router.push({ path: '/layer-block', query: { layerCode: layer.layerCode } })
+      break
+    case 'release':
+      // 跳转折锁台账查看本层封锁记录并解除（解除必须填写结论）
+      router.push({ path: '/layer-block', query: { layerCode: layer.layerCode, status: 'BLOCKED' } })
+      break
     case 'delete':
       handleDeleteLayer(layer)
       break
@@ -397,7 +441,7 @@ const handleCardAction = (cmd, layer) => {
 const handleDeleteLayer = async (layer) => {
   try {
     await ElMessageBox.confirm(
-      `确定删除分层【${layer.layerCode}】吗？若该层下有垫板将无法删除。`,
+      `确定删除分层【${layer.layerCode}】吗？若该层下有垫板或处于封锁中将无法删除。`,
       '提示',
       { type: 'warning' }
     )
@@ -448,6 +492,26 @@ onMounted(loadData)
       transform: translateY(-2px);
       box-shadow: 0 6px 16px rgba(0, 0, 0, 0.1);
       border-color: #409eff40;
+    }
+
+    &.layer-blocked {
+      border-color: #f56c6c80;
+
+      .layer-card-header {
+        background: linear-gradient(135deg, #fef0f0 0%, #fde2e2 100%);
+      }
+    }
+
+    .block-banner {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 8px 16px;
+      background: #fef0f0;
+      color: #f56c6c;
+      font-size: 12px;
+      line-height: 1.5;
+      border-bottom: 1px solid #fde2e2;
     }
 
     .layer-card-header {

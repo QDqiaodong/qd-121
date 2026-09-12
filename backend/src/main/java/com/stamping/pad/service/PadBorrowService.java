@@ -13,7 +13,6 @@ import com.stamping.pad.entity.ShelfLayer;
 import com.stamping.pad.mapper.LayerAdjustRecordMapper;
 import com.stamping.pad.mapper.PadBorrowRecordMapper;
 import com.stamping.pad.mapper.PadInfoMapper;
-import com.stamping.pad.mapper.ShelfLayerMapper;
 import com.stamping.pad.vo.BorrowRecordExcelVO;
 import com.alibaba.excel.EasyExcel;
 import jakarta.servlet.http.HttpServletResponse;
@@ -37,7 +36,6 @@ public class PadBorrowService {
 
     private final PadBorrowRecordMapper borrowRecordMapper;
     private final PadInfoMapper padInfoMapper;
-    private final ShelfLayerMapper shelfLayerMapper;
     private final LayerAdjustRecordMapper recordMapper;
     private final ShelfLayerService shelfLayerService;
 
@@ -138,7 +136,7 @@ public class PadBorrowService {
         if (returnLayerCode == null || returnLayerCode.isEmpty()) {
             throw new RuntimeException("归还层位不能为空");
         }
-        // 归还层位须存在且未满（容量配额为 0 的层位同样不可作为归还目标）
+        // 归还层位须存在、未封锁且未满（容量配额为 0 的层位同样不可作为归还目标）
         shelfLayerService.lockAndAssertCapacity(returnLayerCode);
         // 归还层位必须可用：层位上不存在任何在架垫板
         List<PadInfo> occupied = padInfoMapper.selectByLayerCode(returnLayerCode);
@@ -190,9 +188,9 @@ public class PadBorrowService {
         }
     }
 
-    /** 可归还层位：返回全部层位及其容量配额与当前占用数，前端按占用/配额放行选择，后端归还时二次校验 */
+    /** 可归还层位：返回全部层位及其容量配额、当前占用数与封锁状态，前端按占用/配额/封锁放行选择，后端归还时二次校验 */
     public List<ShelfLayer> listAvailableReturnLayers() {
-        return shelfLayerMapper.selectAllWithCount();
+        return shelfLayerService.listAll();
     }
 
     private static final DateTimeFormatter TIME_FORMATTER =

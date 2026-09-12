@@ -26,6 +26,12 @@ const routes = [
     meta: { title: '货架层位管理' }
   },
   {
+    path: '/layer-block',
+    name: 'LayerBlock',
+    component: () => import('@/views/LayerBlock.vue'),
+    meta: { title: '层位封锁管理' }
+  },
+  {
     path: '/borrow',
     name: 'BorrowReturn',
     component: () => import('@/views/BorrowReturn.vue'),

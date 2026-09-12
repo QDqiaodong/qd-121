@@ -15,6 +15,10 @@ spring:
     exclude:
       - org.springframework.boot.autoconfigure.data.redis.RedisAutoConfiguration
       - org.springframework.boot.autoconfigure.data.redis.RedisRepositoriesAutoConfiguration
+  mvc:
+    format:
+      # 与主配置一致：GET 查询参数 LocalDateTime 按前端日期格式绑定
+      date-time: yyyy-MM-dd HH:mm:ss
 
 mybatis-plus:
   mapper-locations: classpath*:mapper/**/*.xml

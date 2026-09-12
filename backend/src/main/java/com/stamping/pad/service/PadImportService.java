@@ -1,8 +1,10 @@
 package com.stamping.pad.service;
 
 import com.alibaba.excel.EasyExcel;
+import com.stamping.pad.entity.LayerBlockRecord;
 import com.stamping.pad.entity.PadInfo;
 import com.stamping.pad.entity.ShelfLayer;
+import com.stamping.pad.mapper.LayerBlockRecordMapper;
 import com.stamping.pad.mapper.PadInfoMapper;
 import com.stamping.pad.mapper.ShelfLayerMapper;
 import com.stamping.pad.vo.PadImportResultVO;
@@ -42,6 +44,7 @@ public class PadImportService {
 
     private final PadInfoMapper padInfoMapper;
     private final ShelfLayerMapper shelfLayerMapper;
+    private final LayerBlockRecordMapper layerBlockRecordMapper;
     private final PadInfoService padInfoService;
 
     /**
@@ -79,6 +82,7 @@ public class PadImportService {
 
         Set<String> dbPadCodes = loadDbPadCodes();
         Set<String> validLayerCodes = loadValidLayerCodes();
+        Set<String> blockedLayerCodes = loadBlockedLayerCodes();
 
         List<PadImportRowVO> result = new ArrayList<>();
         Set<String> filePadCodes = new HashSet<>();
@@ -89,7 +93,7 @@ public class PadImportService {
                 continue;
             }
             row.setRowNum(rowNum);
-            List<String> errors = validateRow(row, filePadCodes, dbPadCodes, validLayerCodes);
+            List<String> errors = validateRow(row, filePadCodes, dbPadCodes, validLayerCodes, blockedLayerCodes);
             String padCode = trim(row.getPadCode());
             if (!padCode.isEmpty()) {
                 filePadCodes.add(padCode);
@@ -115,6 +119,7 @@ public class PadImportService {
 
         Set<String> dbPadCodes = loadDbPadCodes();
         Set<String> validLayerCodes = loadValidLayerCodes();
+        Set<String> blockedLayerCodes = loadBlockedLayerCodes();
         Set<String> batchPadCodes = new HashSet<>();
 
         int index = 1;
@@ -127,7 +132,7 @@ public class PadImportService {
             }
             index++;
 
-            List<String> errors = validateRow(row, batchPadCodes, dbPadCodes, validLayerCodes);
+            List<String> errors = validateRow(row, batchPadCodes, dbPadCodes, validLayerCodes, blockedLayerCodes);
             String padCode = trim(row.getPadCode());
             if (!padCode.isEmpty()) {
                 batchPadCodes.add(padCode);
@@ -189,7 +194,8 @@ public class PadImportService {
     private List<String> validateRow(PadImportRowVO row,
                                      Set<String> filePadCodes,
                                      Set<String> dbPadCodes,
-                                     Set<String> validLayerCodes) {
+                                     Set<String> validLayerCodes,
+                                     Set<String> blockedLayerCodes) {
         List<String> errors = new ArrayList<>();
 
         String padCode = trim(row.getPadCode());
@@ -222,6 +228,9 @@ public class PadImportService {
         row.setShelfLayerCode(layerCode);
         if (!layerCode.isEmpty() && !validLayerCodes.contains(layerCode)) {
             errors.add("初始层位【" + layerCode + "】不存在，请在货架层位管理中确认");
+        } else if (!layerCode.isEmpty() && blockedLayerCodes.contains(layerCode)) {
+            // 封锁中的层位禁止导入占位，解除封锁后可重新导入
+            errors.add("初始层位【" + layerCode + "】处于封锁中（破损/清扫/检修），不可导入占位");
         }
 
         String remark = trim(row.getRemark());
@@ -307,6 +316,16 @@ public class PadImportService {
         List<ShelfLayer> layers = shelfLayerMapper.selectList(null);
         if (layers != null) {
             layers.forEach(layer -> codes.add(layer.getLayerCode()));
+        }
+        return codes;
+    }
+
+    /** 封锁中层位编码集合：导入校验据此拦截“导入占位”到封锁层 */
+    private Set<String> loadBlockedLayerCodes() {
+        Set<String> codes = new HashSet<>();
+        List<LayerBlockRecord> activeBlocks = layerBlockRecordMapper.selectActiveBlocks();
+        if (activeBlocks != null) {
+            activeBlocks.forEach(block -> codes.add(block.getLayerCode()));
         }
         return codes;
     }

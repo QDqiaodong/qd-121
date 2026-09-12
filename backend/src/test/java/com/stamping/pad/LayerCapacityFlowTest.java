@@ -10,6 +10,7 @@ import com.stamping.pad.entity.PadBorrowRecord;
 import com.stamping.pad.entity.PadInfo;
 import com.stamping.pad.entity.ShelfLayer;
 import com.stamping.pad.mapper.LayerAdjustRecordMapper;
+import com.stamping.pad.mapper.LayerBlockRecordMapper;
 import com.stamping.pad.mapper.PadBorrowRecordMapper;
 import com.stamping.pad.mapper.PadInfoMapper;
 import com.stamping.pad.mapper.ShelfLayerMapper;
@@ -49,11 +50,14 @@ class LayerCapacityFlowTest {
     private PadBorrowRecordMapper padBorrowRecordMapper;
     @Autowired
     private LayerAdjustRecordMapper recordMapper;
+    @Autowired
+    private LayerBlockRecordMapper blockRecordMapper;
 
     @BeforeEach
     void setUp() {
         padBorrowRecordMapper.delete(null);
         recordMapper.delete(null);
+        blockRecordMapper.delete(null);
         padInfoMapper.delete(null);
         shelfLayerMapper.delete(null);
     }

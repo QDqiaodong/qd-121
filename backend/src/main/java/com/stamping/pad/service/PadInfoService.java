@@ -110,7 +110,7 @@ public class PadInfoService {
         padInfo.setUpdateTime(LocalDateTime.now());
 
         if (dto.getShelfLayerCode() != null && !dto.getShelfLayerCode().isEmpty()) {
-            // 建档即上架：层位须存在且占用未达配额
+            // 建档即上架：层位须存在、未封锁且占用未达配额
             shelfLayerService.lockAndAssertCapacity(dto.getShelfLayerCode());
             padInfo.setBindTime(LocalDateTime.now());
             padInfoMapper.insert(padInfo);
@@ -165,7 +165,7 @@ public class PadInfoService {
             if (newLayerCode != null) {
                 // 待检/停用垫板不可上架
                 assertPadBindable(existing);
-                // 换绑/新绑目标层位须存在且占用未达配额
+                // 换绑/新绑目标层位须存在、未封锁且占用未达配额
                 shelfLayerService.lockAndAssertCapacity(newLayerCode);
             }
             if (oldLayerCode == null) {
@@ -247,7 +247,7 @@ public class PadInfoService {
             adjustType = "REBIND";
         }
 
-        // 绑定/换绑目标层位须存在且占用未达配额
+        // 绑定/换绑目标层位须存在、未封锁且占用未达配额
         shelfLayerService.lockAndAssertCapacity(dto.getLayerCode());
 
         padInfo.setShelfLayerCode(dto.getLayerCode());
@@ -321,7 +321,7 @@ public class PadInfoService {
 
         String layerCode = padInfo.getShelfLayerCode();
         if (layerCode != null && !layerCode.isEmpty()) {
-            // 导入即上架：层位须存在且占用未达配额（逐行独立事务，占用数实时统计）
+            // 导入即上架：层位须存在、未封锁且占用未达配额（逐行独立事务，占用数实时统计）
             shelfLayerService.lockAndAssertCapacity(layerCode);
             padInfo.setBindTime(now);
             padInfoMapper.insert(padInfo);

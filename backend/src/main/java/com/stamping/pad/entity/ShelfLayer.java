@@ -38,4 +38,8 @@ public class ShelfLayer {
 
     @TableField(exist = false)
     private List<PadInfo> padList;
+
+    /** 当前生效的封锁记录（非本表字段）：非空表示层位封锁中，禁止绑定/换绑/归还上架/导入占位 */
+    @TableField(exist = false)
+    private LayerBlockRecord activeBlock;
 }

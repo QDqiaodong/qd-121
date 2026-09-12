@@ -22,6 +22,11 @@ spring:
     time-zone: Asia/Shanghai
     serialization:
       write-dates-as-timestamps: false
+  mvc:
+    format:
+      # GET 查询参数中 LocalDateTime 的绑定格式，与前端日期选择器 value-format 一致；
+      # 不配置时 Spring 默认仅支持 ISO(yyyy-MM-ddTHH:mm:ss)，台账日期区间筛选会绑定失败
+      date-time: yyyy-MM-dd HH:mm:ss
 
 mybatis-plus:
   mapper-locations: classpath*:mapper/**/*.xml

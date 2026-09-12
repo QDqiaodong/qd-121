@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.stamping.pad.mapper.LayerBlockRecordMapper">
+
+    <resultMap id="LayerBlockRecordResultMap" type="com.stamping.pad.entity.LayerBlockRecord">
+        <id column="id" property="id"/>
+        <result column="layer_id" property="layerId"/>
+        <result column="layer_code" property="layerCode"/>
+        <result column="block_type" property="blockType"/>
+        <result column="block_reason" property="blockReason"/>
+        <result column="start_time" property="startTime"/>
+        <result column="operator" property="operator"/>
+        <result column="status" property="status"/>
+        <result column="release_time" property="releaseTime"/>
+        <result column="release_conclusion" property="releaseConclusion"/>
+        <result column="release_operator" property="releaseOperator"/>
+        <result column="remark" property="remark"/>
+        <result column="create_time" property="createTime"/>
+        <result column="update_time" property="updateTime"/>
+        <result column="layer_name" property="layerName"/>
+        <result column="shelf_code" property="shelfCode"/>
+    </resultMap>
+
+    <select id="selectPageList" resultMap="LayerBlockRecordResultMap">
+        SELECT b.*, sl.layer_name AS layer_name, sl.shelf_code AS shelf_code
+        FROM layer_block_record b
+        LEFT JOIN shelf_layer sl ON b.layer_code = sl.layer_code
+        <where>
+            <if test="query.status != null and query.status != ''">
+                AND b.status = #{query.status}
+            </if>
+            <if test="query.layerCode != null and query.layerCode != ''">
+                AND b.layer_code LIKE CONCAT('%', #{query.layerCode}, '%')
+            </if>
+            <if test="query.blockType != null and query.blockType != ''">
+                AND b.block_type = #{query.blockType}
+            </if>
+            <if test="query.startTime != null">
+                AND b.start_time &gt;= #{query.startTime}
+            </if>
+            <if test="query.endTime != null">
+                AND b.start_time &lt;= #{query.endTime}
+            </if>
+        </where>
+        ORDER BY b.start_time DESC, b.id DESC
+    </select>
+
+    <select id="selectActiveBlocks" resultMap="LayerBlockRecordResultMap">
+        SELECT b.*, sl.layer_name AS layer_name, sl.shelf_code AS shelf_code
+        FROM layer_block_record b
+        LEFT JOIN shelf_layer sl ON b.layer_code = sl.layer_code
+        WHERE b.status = 'BLOCKED'
+        ORDER BY b.start_time DESC, b.id DESC
+    </select>
+
+</mapper>

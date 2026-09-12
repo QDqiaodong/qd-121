@@ -64,7 +64,12 @@
                       class="layer-item"
                     >
                       <div class="layer-info">
-                        <span class="layer-code">{{ layer.layerCode }}</span>
+                        <span class="layer-code">
+                          {{ layer.layerCode }}
+                          <el-tag v-if="layer.activeBlock" type="danger" size="small" effect="dark">
+                            封锁中
+                          </el-tag>
+                        </span>
                         <span class="layer-name">{{ layer.layerName }}</span>
                       </div>
                       <div class="layer-count">

@@ -11,6 +11,7 @@ import com.stamping.pad.entity.PadInfo;
 import com.stamping.pad.entity.PadMaintenanceRecord;
 import com.stamping.pad.entity.ShelfLayer;
 import com.stamping.pad.mapper.LayerAdjustRecordMapper;
+import com.stamping.pad.mapper.LayerBlockRecordMapper;
 import com.stamping.pad.mapper.PadBorrowRecordMapper;
 import com.stamping.pad.mapper.PadInfoMapper;
 import com.stamping.pad.mapper.PadMaintenanceRecordMapper;
@@ -56,6 +57,8 @@ class PadMaintenanceFlowTest {
     private PadMaintenanceRecordMapper maintenanceRecordMapper;
     @Autowired
     private LayerAdjustRecordMapper adjustRecordMapper;
+    @Autowired
+    private LayerBlockRecordMapper blockRecordMapper;
 
     private Long padId;
 
@@ -64,6 +67,7 @@ class PadMaintenanceFlowTest {
         maintenanceRecordMapper.delete(null);
         padBorrowRecordMapper.delete(null);
         adjustRecordMapper.delete(null);
+        blockRecordMapper.delete(null);
         padInfoMapper.delete(null);
         shelfLayerMapper.delete(null);
 

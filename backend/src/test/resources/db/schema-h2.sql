@@ -103,3 +103,24 @@ CREATE TABLE IF NOT EXISTS pad_scrap_record (
 CREATE INDEX IF NOT EXISTS idx_psr_pad_code ON pad_scrap_record (pad_code);
 CREATE INDEX IF NOT EXISTS idx_psr_destination ON pad_scrap_record (destination);
 CREATE INDEX IF NOT EXISTS idx_psr_scrap_time ON pad_scrap_record (scrap_time);
+
+CREATE TABLE IF NOT EXISTS layer_block_record (
+    id BIGINT NOT NULL AUTO_INCREMENT COMMENT '主键ID',
+    layer_id BIGINT NOT NULL COMMENT '货架分层ID',
+    layer_code VARCHAR(64) NOT NULL COMMENT '分层编码',
+    block_type VARCHAR(32) NOT NULL COMMENT '封锁类型：DAMAGE-层位破损、CLEANING-待清扫、MAINTENANCE-检修中、OTHER-其他',
+    block_reason VARCHAR(512) NOT NULL COMMENT '封锁原因',
+    start_time DATETIME NOT NULL COMMENT '封锁开始时间',
+    operator VARCHAR(64) NOT NULL COMMENT '经办人',
+    status VARCHAR(16) NOT NULL DEFAULT 'BLOCKED' COMMENT '状态：BLOCKED-封锁中、RELEASED-已解除',
+    release_time DATETIME DEFAULT NULL COMMENT '解除时间',
+    release_conclusion VARCHAR(512) DEFAULT NULL COMMENT '解除结论（解除时必填）',
+    release_operator VARCHAR(64) DEFAULT NULL COMMENT '解除经办人',
+    remark VARCHAR(512) DEFAULT NULL COMMENT '备注',
+    create_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    update_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '更新时间',
+    PRIMARY KEY (id)
+);
+CREATE INDEX IF NOT EXISTS idx_lbr_layer_code ON layer_block_record (layer_code);
+CREATE INDEX IF NOT EXISTS idx_lbr_status ON layer_block_record (status);
+CREATE INDEX IF NOT EXISTS idx_lbr_start_time ON layer_block_record (start_time);

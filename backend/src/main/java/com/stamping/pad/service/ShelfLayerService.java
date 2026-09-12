@@ -2,8 +2,10 @@ package com.stamping.pad.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.stamping.pad.entity.LayerBlockRecord;
 import com.stamping.pad.entity.PadInfo;
 import com.stamping.pad.entity.ShelfLayer;
+import com.stamping.pad.mapper.LayerBlockRecordMapper;
 import com.stamping.pad.mapper.ShelfLayerMapper;
 import com.stamping.pad.mapper.PadInfoMapper;
 import lombok.RequiredArgsConstructor;
@@ -11,6 +13,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Map;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -21,14 +26,18 @@ public class ShelfLayerService {
 
     private final ShelfLayerMapper shelfLayerMapper;
     private final PadInfoMapper padInfoMapper;
+    private final LayerBlockRecordMapper layerBlockRecordMapper;
 
     public List<ShelfLayer> listAll() {
-        return shelfLayerMapper.selectAllWithCount();
+        List<ShelfLayer> layers = shelfLayerMapper.selectAllWithCount();
+        fillActiveBlock(layers);
+        return layers;
     }
 
     public Page<ShelfLayer> pageList(Long pageNum, Long pageSize) {
         Page<ShelfLayer> page = new Page<>(pageNum, pageSize);
         List<ShelfLayer> allLayers = shelfLayerMapper.selectAllWithCount();
+        fillActiveBlock(allLayers);
         int start = (int) ((pageNum - 1) * pageSize);
         int end = Math.min(start + pageSize.intValue(), allLayers.size());
         page.setRecords(allLayers.subList(start, end));
@@ -37,15 +46,35 @@ public class ShelfLayerService {
     }
 
     public ShelfLayer getByCode(String layerCode) {
-        return shelfLayerMapper.selectByLayerCode(layerCode);
+        ShelfLayer layer = shelfLayerMapper.selectByLayerCode(layerCode);
+        fillActiveBlock(layer);
+        return layer;
     }
 
     public ShelfLayer getById(Long id) {
         ShelfLayer layer = shelfLayerMapper.selectById(id);
         if (layer != null) {
             layer.setPadList(padInfoMapper.selectByLayerCode(layer.getLayerCode()));
+            fillActiveBlock(layer);
         }
         return layer;
+    }
+
+    /** 回填层位当前生效的封锁记录，前端按 activeBlock 是否为空标注“封锁中”并限制可选范围 */
+    private void fillActiveBlock(List<ShelfLayer> layers) {
+        if (layers == null || layers.isEmpty()) {
+            return;
+        }
+        Map<String, LayerBlockRecord> activeMap = layerBlockRecordMapper.selectActiveBlocks().stream()
+                .collect(Collectors.toMap(LayerBlockRecord::getLayerCode, Function.identity(), (a, b) -> a));
+        layers.forEach(layer -> layer.setActiveBlock(activeMap.get(layer.getLayerCode())));
+    }
+
+    private void fillActiveBlock(ShelfLayer layer) {
+        if (layer == null) {
+            return;
+        }
+        fillActiveBlock(List.of(layer));
     }
 
     @Transactional(rollbackFor = Exception.class)
@@ -87,14 +116,15 @@ public class ShelfLayerService {
     }
 
     /**
-     * 上架前容量校验：行锁目标层位（须在事务内调用），层位不存在或占用已达配额时拒绝。
-     * 绑定、换绑、新建档案带层位、归还上架、批量导入统一走此入口，保证不超配额。
+     * 上架前校验：行锁目标层位（须在事务内调用），层位不存在、封锁中或占用已达配额时拒绝。
+     * 绑定、换绑、新建档案带层位、归还上架、批量导入统一走此入口，保证不超配额、不占封锁层。
      */
     public ShelfLayer lockAndAssertCapacity(String layerCode) {
         ShelfLayer layer = shelfLayerMapper.lockByLayerCode(layerCode);
         if (layer == null) {
             throw new RuntimeException("货架分层不存在");
         }
+        assertNotBlocked(layerCode);
         int used = countOnShelf(layerCode);
         int capacity = layer.getCapacity() == null ? 0 : layer.getCapacity();
         if (used >= capacity) {
@@ -102,6 +132,17 @@ public class ShelfLayerService {
         }
         layer.setPadCount(used);
         return layer;
+    }
+
+    /** 封锁中的层位禁止上架占位（绑定/换绑/归还/导入），解除封锁后自动恢复 */
+    public void assertNotBlocked(String layerCode) {
+        Long blocked = layerBlockRecordMapper.selectCount(
+                new LambdaQueryWrapper<LayerBlockRecord>()
+                        .eq(LayerBlockRecord::getLayerCode, layerCode)
+                        .eq(LayerBlockRecord::getStatus, LayerBlockRecord.STATUS_BLOCKED));
+        if (blocked > 0) {
+            throw new RuntimeException("层位【" + layerCode + "】处于封锁中（破损/清扫/检修），封锁期间禁止上架占位，请先解除封锁");
+        }
     }
 
     @Transactional(rollbackFor = Exception.class)
@@ -112,12 +153,21 @@ public class ShelfLayerService {
             if (count > 0) {
                 throw new RuntimeException("该分层下存在垫板，无法删除");
             }
+            // 封锁中的层位须先解除封锁再删除，避免封锁台账留下无主记录
+            Long blocked = layerBlockRecordMapper.selectCount(
+                    new LambdaQueryWrapper<LayerBlockRecord>()
+                            .eq(LayerBlockRecord::getLayerCode, layer.getLayerCode())
+                            .eq(LayerBlockRecord::getStatus, LayerBlockRecord.STATUS_BLOCKED));
+            if (blocked > 0) {
+                throw new RuntimeException("该分层处于封锁中，请先解除封锁后再删除");
+            }
             shelfLayerMapper.deleteById(id);
         }
     }
 
     public List<ShelfLayer> listGroupByShelf() {
         List<ShelfLayer> layers = shelfLayerMapper.selectAllWithCount();
+        fillActiveBlock(layers);
         for (ShelfLayer layer : layers) {
             layer.setPadList(padInfoMapper.selectByLayerCode(layer.getLayerCode()));
         }

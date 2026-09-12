@@ -335,9 +335,9 @@
                 <el-option
                   v-for="layer in layerOptions"
                   :key="layer.layerCode"
-                  :label="layer.layerCode + ' - ' + layer.layerName + layerCapacityLabel(layer)"
+                  :label="layerOptionLabel(layer)"
                   :value="layer.layerCode"
-                  :disabled="(isLayerFull(layer) && layer.layerCode !== formData.shelfLayerCode) || (isEdit && !isPadAvailable(formData))"
+                  :disabled="(isLayerFull(layer) && layer.layerCode !== formData.shelfLayerCode) || (isLayerBlocked(layer) && layer.layerCode !== formData.shelfLayerCode) || (isEdit && !isPadAvailable(formData))"
                 />
               </el-select>
               <div v-if="isEdit && !isPadAvailable(formData)" class="form-tip">
@@ -407,9 +407,9 @@
             <el-option
               v-for="layer in layerOptions"
               :key="layer.layerCode"
-              :label="layer.layerCode + ' - ' + layer.layerName + layerCapacityLabel(layer)"
+              :label="layerOptionLabel(layer)"
               :value="layer.layerCode"
-              :disabled="isLayerFull(layer) && layer.layerCode !== currentPad?.shelfLayerCode"
+              :disabled="(isLayerFull(layer) || isLayerBlocked(layer)) && layer.layerCode !== currentPad?.shelfLayerCode"
             />
           </el-select>
         </el-form-item>
@@ -587,10 +587,16 @@ const formatTime = (time) => (time ? dayjs(time).format('YYYY-MM-DD HH:mm:ss') :
 
 // 层位容量：达到配额视为已满，不可再作为绑定/建档目标（当前已绑定层位除外，便于编辑时保留原值）
 const isLayerFull = (layer) => (layer.padCount || 0) >= (layer.capacity ?? 0)
+// 层位封锁：封锁中层位不可作为绑定/换绑/建档目标（当前已绑定层位除外，便于编辑时保留原值）
+const isLayerBlocked = (layer) => !!layer.activeBlock
 const layerCapacityLabel = (layer) => {
   const used = layer.padCount || 0
   const capacity = layer.capacity ?? 0
   return isLayerFull(layer) ? `（已满 ${used}/${capacity}）` : `（占用 ${used}/${capacity}）`
+}
+const layerOptionLabel = (layer) => {
+  const base = `${layer.layerCode} - ${layer.layerName}`
+  return isLayerBlocked(layer) ? `${base}（封锁中，不可上架）` : base + layerCapacityLabel(layer)
 }
 
 const getAdjustTypeLabel = (type) => {
