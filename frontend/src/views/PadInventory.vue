@@ -520,7 +520,7 @@
       </template>
     </el-dialog>
 
-    <!-- 闭环：差异处理完毕后登记处理结论 -->
+    <!-- 闭环：差异处理完毕后必须登记处理结论与处理人 -->
     <el-dialog v-model="closeVisible" title="盘点闭环" width="560px" destroy-on-close>
       <template v-if="closeTarget">
         <el-alert
@@ -531,7 +531,7 @@
           :description="`单号 ${closeTarget.sheetNo} · ${getShiftLabel(closeTarget.shift)} · 盘点人 ${closeTarget.inspector} · 提交于 ${formatTime(closeTarget.submitTime)}`"
         />
         <el-form ref="closeFormRef" :model="closeForm" :rules="closeRules" label-width="90px" style="margin-top: 14px">
-          <el-form-item label="闭环结论" prop="closeConclusion">
+          <el-form-item label="处理结论" prop="closeConclusion">
             <el-input
               v-model="closeForm.closeConclusion"
               type="textarea"
@@ -552,8 +552,8 @@
               </el-form-item>
             </el-col>
             <el-col :span="12">
-              <el-form-item label="闭环人">
-                <el-input v-model="closeForm.closeOperator" placeholder="缺省取盘点人" />
+              <el-form-item label="处理人" prop="closeOperator">
+                <el-input v-model="closeForm.closeOperator" placeholder="必填：处理闭环的经办人" />
               </el-form-item>
             </el-col>
           </el-row>
@@ -910,7 +910,8 @@ const closeFormRef = ref(null)
 const closeTarget = ref(null)
 const closeForm = reactive({ closeConclusion: '', closeTime: '', closeOperator: '' })
 const closeRules = {
-  closeConclusion: [{ required: true, message: '闭环必须填写处理结论', trigger: 'blur' }]
+  closeConclusion: [{ required: true, message: '闭环必须填写处理结论', trigger: 'blur' }],
+  closeOperator: [{ required: true, message: '闭环必须填写处理人', trigger: 'blur' }]
 }
 
 const openCloseDialog = (sheet) => {

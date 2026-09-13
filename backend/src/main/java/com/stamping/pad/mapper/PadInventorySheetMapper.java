@@ -18,4 +18,10 @@ public interface PadInventorySheetMapper extends BaseMapper<PadInventorySheet> {
 
     /** 待闭环（有差异未平账）单据：层位列表/归还校验据此标注未平账并禁止归还上架 */
     List<PadInventorySheet> selectUnbalanced();
+
+    /**
+     * 已闭环的差异单据（有差异原因、按闭环时间倒序）：
+     * 层位列表据此回填每层最近一次闭环摘要（处理结论/处理人），未平账单优先于历史闭环展示。
+     */
+    List<PadInventorySheet> selectLastClosedDiffSheets();
 }

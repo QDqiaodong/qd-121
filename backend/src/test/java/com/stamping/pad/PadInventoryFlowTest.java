@@ -38,7 +38,7 @@ import static org.junit.jupiter.api.Assertions.*;
 /**
  * 交班盘点链路：交班按货架层清点在架垫板（班次/盘点人），逐块标记相符/缺失、补录多出；
  * 有差异提交必须登记差异原因，单据进入“待闭环”（未平账）——覆盖层位在层位列表标出，
- * 未闭环前禁止归还上架；闭环必须填写处理结论，闭环后层位恢复可归还。
+ * 未闭环前禁止归还上架；闭环必须填写处理结论与处理人，闭环后层位恢复可归还、概览改标处理结论摘要。
  */
 @SpringBootTest(classes = TestApplication.class, webEnvironment = SpringBootTest.WebEnvironment.NONE)
 class PadInventoryFlowTest {
@@ -113,9 +113,14 @@ class PadInventoryFlowTest {
     }
 
     private InventorySheetCloseDTO closeDto(Long sheetId, String conclusion) {
+        return closeDto(sheetId, conclusion, "赵处理");
+    }
+
+    private InventorySheetCloseDTO closeDto(Long sheetId, String conclusion, String closeOperator) {
         InventorySheetCloseDTO dto = new InventorySheetCloseDTO();
         dto.setSheetId(sheetId);
         dto.setCloseConclusion(conclusion);
+        dto.setCloseOperator(closeOperator);
         return dto;
     }
 
@@ -383,12 +388,25 @@ class PadInventoryFlowTest {
         assertTrue(ex.getMessage().contains("现场多出一块无账垫板"));
         assertEquals("BORROWED", borrowRecordMapper.selectById(record.getId()).getStatus());
 
-        // 闭环必须填写结论
+        // 闭环必须填写处理结论与处理人
         assertThrows(RuntimeException.class, () -> inventoryService.close(closeDto(sheet.getId(), " ")));
+        InventorySheetCloseDTO noOperator = closeDto(sheet.getId(), "多出垫板已登记退库，账实一致", "  ");
+        assertThrows(RuntimeException.class, () -> inventoryService.close(noOperator));
 
         // 闭环后层位恢复：归还成功
-        inventoryService.close(closeDto(sheet.getId(), "多出垫板已登记退库，账实一致"));
-        assertNull(shelfLayerService.getByCode("A-01-01").getActiveUnbalanced());
+        inventoryService.close(closeDto(sheet.getId(), "多出垫板已登记退库，账实一致", "赵处理"));
+        ShelfLayer closedLayer = shelfLayerService.getByCode("A-01-01");
+        assertNull(closedLayer.getActiveUnbalanced());
+        // 概览层位把未平账标记换成处理结论摘要
+        assertNotNull(closedLayer.getLastClosedInventory());
+        assertEquals("多出垫板已登记退库，账实一致",
+                closedLayer.getLastClosedInventory().getCloseConclusion());
+        assertEquals("赵处理", closedLayer.getLastClosedInventory().getCloseOperator());
+        // 归还可选层不再列该层为未平账（下拉可重新选回该层）
+        assertTrue(padBorrowService.listAvailableReturnLayers().stream()
+                .filter(l -> "A-01-01".equals(l.getLayerCode()))
+                .findFirst().orElseThrow()
+                .getActiveUnbalanced() == null);
         PadBorrowRecord returned = padBorrowService.doReturn(ret);
         assertEquals("RETURNED", returned.getStatus());
         assertEquals("A-01-01", padInfoMapper.selectById(padId).getShelfLayerCode());
@@ -409,20 +427,27 @@ class PadInventoryFlowTest {
 
         inventoryService.submit(submitDto(sheet.getId(), "缺失一块，待核查"));
 
+        // 闭环必须填写处理结论与处理人
+        assertThrows(RuntimeException.class,
+                () -> inventoryService.close(closeDto(sheet.getId(), "  ", "赵处理")));
+        assertThrows(RuntimeException.class,
+                () -> inventoryService.close(closeDto(sheet.getId(), "已找回", "  ")));
+
         // 闭环时间早于提交时间：拒绝
-        InventorySheetCloseDTO earlyClose = closeDto(sheet.getId(), "已找回");
+        InventorySheetCloseDTO earlyClose = closeDto(sheet.getId(), "已找回", "赵处理");
         earlyClose.setCloseTime(LocalDateTime.now().minusDays(1));
         assertThrows(RuntimeException.class, () -> inventoryService.close(earlyClose));
 
-        // 正常闭环：缺省闭环人取盘点人
-        PadInventorySheet closed = inventoryService.close(closeDto(sheet.getId(), "缺失板已找回上架"));
+        // 正常闭环：处理结论与处理人均落库
+        PadInventorySheet closed = inventoryService.close(closeDto(sheet.getId(), "缺失板已找回上架", "赵处理"));
         assertEquals("CLOSED", closed.getStatus());
         assertEquals("缺失板已找回上架", closed.getCloseConclusion());
-        assertEquals("王盘点", closed.getCloseOperator());
+        assertEquals("赵处理", closed.getCloseOperator());
         assertNotNull(closed.getCloseTime());
 
         // 重复闭环：拒绝
-        assertThrows(RuntimeException.class, () -> inventoryService.close(closeDto(sheet.getId(), "再次闭环")));
+        assertThrows(RuntimeException.class,
+                () -> inventoryService.close(closeDto(sheet.getId(), "再次闭环", "赵处理")));
     }
 
     // ---------------- 取消 ----------------

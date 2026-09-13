@@ -74,4 +74,12 @@
         ORDER BY submit_time DESC, id DESC
     </select>
 
+    <!-- 已闭环的差异单据：层位列表据此回填每层最近一次闭环摘要（处理结论/处理人），按闭环时间倒序 -->
+    <select id="selectLastClosedDiffSheets" resultMap="InventorySheetResultMap">
+        SELECT * FROM pad_inventory_sheet
+        WHERE status = 'CLOSED' AND diff_reason IS NOT NULL AND diff_reason != ''
+        ORDER BY close_time DESC, id DESC
+        LIMIT 500
+    </select>
+
 </mapper>

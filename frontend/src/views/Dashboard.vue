@@ -79,6 +79,15 @@
                           >
                             <el-tag type="danger" size="small" effect="dark">未平账</el-tag>
                           </el-tooltip>
+                          <el-tooltip
+                            v-else-if="layer.lastClosedInventory"
+                            :content="`盘点差异已闭环：${layer.lastClosedInventory.closeConclusion}（单号 ${layer.lastClosedInventory.sheetNo}，${formatFullTime(layer.lastClosedInventory.closeTime)} · 处理人 ${layer.lastClosedInventory.closeOperator || '-'}）`"
+                            placement="top"
+                          >
+                            <el-tag type="success" size="small" effect="plain" class="closed-inventory-tag">
+                              已闭环：{{ truncateConclusion(layer.lastClosedInventory.closeConclusion) }}
+                            </el-tag>
+                          </el-tooltip>
                         </span>
                         <span class="layer-name">{{ layer.layerName }}</span>
                       </div>
@@ -157,6 +166,17 @@ const recordLoading = ref(false)
 
 const formatTime = (time) => {
   return time ? dayjs(time).format('MM-DD HH:mm') : '-'
+}
+
+// 闭环提示需要完整时间（标签本身只展示结论摘要）
+const formatFullTime = (time) => {
+  return time ? dayjs(time).format('YYYY-MM-DD HH:mm:ss') : '-'
+}
+
+// 概览标签仅展示处理结论摘要，完整结论/处理人放在 tooltip
+const truncateConclusion = (text) => {
+  if (!text) return '已闭环'
+  return text.length > 10 ? `${text.slice(0, 10)}…` : text
 }
 
 const getAdjustTypeLabel = (type) => {
@@ -354,6 +374,14 @@ onMounted(refreshData)
               font-weight: 600;
               font-size: 13px;
               color: #1e3a8a;
+
+              .closed-inventory-tag {
+                max-width: 150px;
+                overflow: hidden;
+                text-overflow: ellipsis;
+                white-space: nowrap;
+                vertical-align: baseline;
+              }
             }
             .layer-name {
               font-size: 12px;

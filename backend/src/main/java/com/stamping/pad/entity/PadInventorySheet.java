@@ -65,7 +65,7 @@ public class PadInventorySheet {
     /** 闭环结论（手工闭环必填；账实相符提交时由系统补写） */
     private String closeConclusion;
 
-    /** 闭环人（缺省取盘点人） */
+    /** 闭环处理人（差异闭环必填；账实相符提交时由系统补写为盘点人） */
     private String closeOperator;
 
     private String remark;

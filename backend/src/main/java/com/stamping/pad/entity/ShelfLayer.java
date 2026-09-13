@@ -54,4 +54,11 @@ public class ShelfLayer {
     /** 覆盖本层的待闭环盘点单（非本表字段）：非空表示盘点差异未平账，未闭环前禁止归还上架 */
     @TableField(exist = false)
     private PadInventorySheet activeUnbalanced;
+
+    /**
+     * 覆盖本层的最近一张已闭环差异盘点单（非本表字段）：
+     * 仅含手工闭环的差异单（账实相符自动闭环不展示），概览层位据其展示处理结论摘要。
+     */
+    @TableField(exist = false)
+    private PadInventorySheet lastClosedInventory;
 }

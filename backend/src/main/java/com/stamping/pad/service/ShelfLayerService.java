@@ -41,6 +41,7 @@ public class ShelfLayerService {
         fillActiveBlock(layers);
         fillActiveExpand(layers);
         fillActiveUnbalanced(layers);
+        fillLastClosedInventory(layers);
         return layers;
     }
 
@@ -50,6 +51,7 @@ public class ShelfLayerService {
         fillActiveBlock(allLayers);
         fillActiveExpand(allLayers);
         fillActiveUnbalanced(allLayers);
+        fillLastClosedInventory(allLayers);
         int start = (int) ((pageNum - 1) * pageSize);
         int end = Math.min(start + pageSize.intValue(), allLayers.size());
         page.setRecords(allLayers.subList(start, end));
@@ -62,6 +64,7 @@ public class ShelfLayerService {
         fillActiveBlock(layer);
         fillActiveExpand(layer);
         fillActiveUnbalanced(layer);
+        fillLastClosedInventory(layer);
         return layer;
     }
 
@@ -72,6 +75,7 @@ public class ShelfLayerService {
             fillActiveBlock(layer);
             fillActiveExpand(layer);
             fillActiveUnbalanced(layer);
+            fillLastClosedInventory(layer);
         }
         return layer;
     }
@@ -142,6 +146,30 @@ public class ShelfLayerService {
             return;
         }
         fillActiveUnbalanced(List.of(layer));
+    }
+
+    /**
+     * 回填覆盖本层的最近一张已闭环差异盘点单：闭环后概览/层位页把“未平账”标记换成处理结论摘要。
+     * 结果按闭环时间倒序遍历，每层仅保留最近一张；当前仍存在待闭环单据时前端优先展示未平账。
+     */
+    private void fillLastClosedInventory(List<ShelfLayer> layers) {
+        if (layers == null || layers.isEmpty()) {
+            return;
+        }
+        Map<String, PadInventorySheet> closedMap = new HashMap<>();
+        for (PadInventorySheet sheet : inventorySheetMapper.selectLastClosedDiffSheets()) {
+            for (String code : sheet.getCoveredLayerList()) {
+                closedMap.putIfAbsent(code, sheet);
+            }
+        }
+        layers.forEach(layer -> layer.setLastClosedInventory(closedMap.get(layer.getLayerCode())));
+    }
+
+    private void fillLastClosedInventory(ShelfLayer layer) {
+        if (layer == null) {
+            return;
+        }
+        fillLastClosedInventory(List.of(layer));
     }
 
     /**
@@ -267,6 +295,7 @@ public class ShelfLayerService {
         fillActiveBlock(layers);
         fillActiveExpand(layers);
         fillActiveUnbalanced(layers);
+        fillLastClosedInventory(layers);
         for (ShelfLayer layer : layers) {
             layer.setPadList(padInfoMapper.selectByLayerCode(layer.getLayerCode()));
         }

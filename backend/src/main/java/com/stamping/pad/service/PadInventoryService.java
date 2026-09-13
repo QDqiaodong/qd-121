@@ -36,7 +36,8 @@ import java.util.UUID;
  * 交班盘点：交班时库房按货架层清点在架垫板，登记班次、盘点人。
  * 开单快照账目在架清单，逐块标记相符/缺失，可补录现场多出；提交时存在差异必须登记差异原因，
  * 单据进入“待闭环”（未平账）：覆盖层位在概览/层位页标出，未闭环前禁止归还上架；
- * 差异处理完毕后填写闭环结论闭环，层位自动恢复可归还。账实相符的单据提交即自动闭环。
+ * 差异处理完毕后必须填写处理结论与处理人闭环，层位自动恢复可归还，概览层位改标处理结论摘要。
+ * 账实相符的单据提交即自动闭环。
  */
 @Service
 @RequiredArgsConstructor
@@ -354,7 +355,7 @@ public class PadInventoryService {
     }
 
     /**
-     * 闭环：差异处理完毕后填写闭环结论（可登记闭环时间与闭环人，缺省取当前时间/盘点人）。
+     * 闭环：差异处理完毕后必须填写处理结论与处理人（可登记闭环时间，缺省取当前时间）。
      * 仅“待闭环”单据可闭环，条件更新防止并发重复闭环；闭环后覆盖层位恢复可归还上架。
      */
     @Transactional(rollbackFor = Exception.class)
@@ -373,14 +374,14 @@ public class PadInventoryService {
         if (conclusion.isEmpty()) {
             throw new RuntimeException("闭环必须填写处理结论");
         }
+        String closeOperator = trim(dto.getCloseOperator());
+        if (closeOperator.isEmpty()) {
+            throw new RuntimeException("闭环必须填写处理人");
+        }
         LocalDateTime now = LocalDateTime.now();
         LocalDateTime closeTime = dto.getCloseTime() != null ? dto.getCloseTime() : now;
         if (sheet.getSubmitTime() != null && closeTime.isBefore(sheet.getSubmitTime())) {
             throw new RuntimeException("闭环时间不能早于提交时间");
-        }
-        String closeOperator = trim(dto.getCloseOperator());
-        if (closeOperator.isEmpty()) {
-            closeOperator = sheet.getInspector();
         }
 
         LambdaUpdateWrapper<PadInventorySheet> update = new LambdaUpdateWrapper<>();
