@@ -50,6 +50,12 @@ const routes = [
     meta: { title: '垫板领用归还' }
   },
   {
+    path: '/inventory',
+    name: 'PadInventory',
+    component: () => import('@/views/PadInventory.vue'),
+    meta: { title: '交班盘点' }
+  },
+  {
     path: '/maintenance',
     name: 'PadMaintenance',
     component: () => import('@/views/PadMaintenance.vue'),

@@ -13,6 +13,9 @@ public interface PadInventorySheetMapper extends BaseMapper<PadInventorySheet> {
     Page<PadInventorySheet> selectPageList(Page<PadInventorySheet> page,
                                            @Param("query") InventorySheetQueryDTO query);
 
-    /** 点检中单据：创建时按覆盖层位做重叠校验 */
+    /** 盘点中单据：创建时按覆盖层位做重叠校验 */
     List<PadInventorySheet> selectInProgress();
+
+    /** 待闭环（有差异未平账）单据：层位列表/归还校验据此标注未平账并禁止归还上架 */
+    List<PadInventorySheet> selectUnbalanced();
 }

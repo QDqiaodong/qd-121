@@ -5,9 +5,11 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.stamping.pad.entity.LayerBlockRecord;
 import com.stamping.pad.entity.LayerCapacityExpandRecord;
 import com.stamping.pad.entity.PadInfo;
+import com.stamping.pad.entity.PadInventorySheet;
 import com.stamping.pad.entity.ShelfLayer;
 import com.stamping.pad.mapper.LayerBlockRecordMapper;
 import com.stamping.pad.mapper.LayerCapacityExpandRecordMapper;
+import com.stamping.pad.mapper.PadInventorySheetMapper;
 import com.stamping.pad.mapper.ShelfLayerMapper;
 import com.stamping.pad.mapper.PadInfoMapper;
 import lombok.RequiredArgsConstructor;
@@ -15,6 +17,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
@@ -31,11 +34,13 @@ public class ShelfLayerService {
     private final PadInfoMapper padInfoMapper;
     private final LayerBlockRecordMapper layerBlockRecordMapper;
     private final LayerCapacityExpandRecordMapper expandRecordMapper;
+    private final PadInventorySheetMapper inventorySheetMapper;
 
     public List<ShelfLayer> listAll() {
         List<ShelfLayer> layers = shelfLayerMapper.selectAllWithCount();
         fillActiveBlock(layers);
         fillActiveExpand(layers);
+        fillActiveUnbalanced(layers);
         return layers;
     }
 
@@ -44,6 +49,7 @@ public class ShelfLayerService {
         List<ShelfLayer> allLayers = shelfLayerMapper.selectAllWithCount();
         fillActiveBlock(allLayers);
         fillActiveExpand(allLayers);
+        fillActiveUnbalanced(allLayers);
         int start = (int) ((pageNum - 1) * pageSize);
         int end = Math.min(start + pageSize.intValue(), allLayers.size());
         page.setRecords(allLayers.subList(start, end));
@@ -55,6 +61,7 @@ public class ShelfLayerService {
         ShelfLayer layer = shelfLayerMapper.selectByLayerCode(layerCode);
         fillActiveBlock(layer);
         fillActiveExpand(layer);
+        fillActiveUnbalanced(layer);
         return layer;
     }
 
@@ -64,6 +71,7 @@ public class ShelfLayerService {
             layer.setPadList(padInfoMapper.selectByLayerCode(layer.getLayerCode()));
             fillActiveBlock(layer);
             fillActiveExpand(layer);
+            fillActiveUnbalanced(layer);
         }
         return layer;
     }
@@ -113,6 +121,41 @@ public class ShelfLayerService {
             return activeExpand.getExpandCapacity();
         }
         return layer.getCapacity() == null ? 0 : layer.getCapacity();
+    }
+
+    /** 回填覆盖本层的待闭环盘点单，前端按 activeUnbalanced 是否为空标注“未平账”并限制归还上架 */
+    private void fillActiveUnbalanced(List<ShelfLayer> layers) {
+        if (layers == null || layers.isEmpty()) {
+            return;
+        }
+        Map<String, PadInventorySheet> unbalancedMap = new HashMap<>();
+        for (PadInventorySheet sheet : inventorySheetMapper.selectUnbalanced()) {
+            for (String code : sheet.getCoveredLayerList()) {
+                unbalancedMap.putIfAbsent(code, sheet);
+            }
+        }
+        layers.forEach(layer -> layer.setActiveUnbalanced(unbalancedMap.get(layer.getLayerCode())));
+    }
+
+    private void fillActiveUnbalanced(ShelfLayer layer) {
+        if (layer == null) {
+            return;
+        }
+        fillActiveUnbalanced(List.of(layer));
+    }
+
+    /**
+     * 归还上架前校验：层位存在盘点差异未闭环（待闭环盘点单覆盖）时拒绝。
+     * 仅归还入口调用（绑定/换绑/导入不受影响），闭环后自动恢复可归还。
+     */
+    public void assertNotUnbalancedForReturn(String layerCode) {
+        for (PadInventorySheet sheet : inventorySheetMapper.selectUnbalanced()) {
+            if (sheet.getCoveredLayerList().contains(layerCode)) {
+                throw new RuntimeException("层位【" + layerCode + "】盘点差异未闭环（单号 "
+                        + sheet.getSheetNo() + "：" + sheet.getDiffReason()
+                        + "），未闭环前禁止归还上架，请先在交班盘点台账处理并闭环");
+            }
+        }
     }
 
     @Transactional(rollbackFor = Exception.class)
@@ -223,6 +266,7 @@ public class ShelfLayerService {
         List<ShelfLayer> layers = shelfLayerMapper.selectAllWithCount();
         fillActiveBlock(layers);
         fillActiveExpand(layers);
+        fillActiveUnbalanced(layers);
         for (ShelfLayer layer : layers) {
             layer.setPadList(padInfoMapper.selectByLayerCode(layer.getLayerCode()));
         }

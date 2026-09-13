@@ -72,6 +72,13 @@
                           <el-tag v-if="layer.activeExpand" type="warning" size="small" effect="dark">
                             扩容中
                           </el-tag>
+                          <el-tooltip
+                            v-if="layer.activeUnbalanced"
+                            :content="`盘点差异未平账：${layer.activeUnbalanced.diffReason}（单号 ${layer.activeUnbalanced.sheetNo}），未闭环前禁止归还上架`"
+                            placement="top"
+                          >
+                            <el-tag type="danger" size="small" effect="dark">未平账</el-tag>
+                          </el-tooltip>
                         </span>
                         <span class="layer-name">{{ layer.layerName }}</span>
                       </div>

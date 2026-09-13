@@ -46,6 +46,9 @@
                   <el-tag v-if="layer.activeExpand" type="warning" size="small" effect="dark">
                     扩容中
                   </el-tag>
+                  <el-tag v-if="layer.activeUnbalanced" type="danger" size="small" effect="dark">
+                    未平账
+                  </el-tag>
                 </div>
                 <div class="layer-name">{{ layer.layerName }}</div>
               </div>
@@ -71,6 +74,12 @@
                   <el-dropdown-item v-else command="finishExpand">
                     结束扩容
                   </el-dropdown-item>
+                  <el-dropdown-item v-if="!layer.activeUnbalanced" command="inventory">
+                    发起盘点
+                  </el-dropdown-item>
+                  <el-dropdown-item v-else command="closeInventory">
+                    盘点闭环
+                  </el-dropdown-item>
                   <el-dropdown-item command="delete" divided>删除分层</el-dropdown-item>
                 </el-dropdown-menu>
               </template>
@@ -91,6 +100,15 @@
               临时扩容：{{ layer.activeExpand.expandReason }}
               （配额 {{ layer.activeExpand.originalCapacity }} → {{ layer.activeExpand.expandCapacity }}，
               {{ formatTime(layer.activeExpand.endTime) }} 到期 · 经办人 {{ layer.activeExpand.operator }}）
+            </span>
+          </div>
+
+          <div v-if="layer.activeUnbalanced" class="unbalanced-banner">
+            <el-icon><Warning /></el-icon>
+            <span>
+              盘点差异未平账：{{ layer.activeUnbalanced.diffReason }}
+              （单号 {{ layer.activeUnbalanced.sheetNo }} · {{ getShiftLabel(layer.activeUnbalanced.shift) }} ·
+              盘点人 {{ layer.activeUnbalanced.inspector }}，未闭环前禁止归还上架）
             </span>
           </div>
 
@@ -305,6 +323,10 @@ const formatTime = (time) => (time ? dayjs(time).format('YYYY-MM-DD HH:mm:ss') :
 const BLOCK_TYPE_LABELS = { DAMAGE: '层位破损', CLEANING: '待清扫', MAINTENANCE: '检修中', OTHER: '其他' }
 const getBlockTypeLabel = (type) => BLOCK_TYPE_LABELS[type] || type
 
+// 盘点班次：与交班盘点台账字典一致
+const SHIFT_LABELS = { DAY: '白班', MIDDLE: '中班', NIGHT: '夜班' }
+const getShiftLabel = (shift) => SHIFT_LABELS[shift] || shift
+
 const shelfGroups = computed(() => {
   const map = {}
   allLayers.value.forEach((layer) => {
@@ -469,6 +491,14 @@ const handleCardAction = (cmd, layer) => {
       // 跳转扩容台账查看本层扩容记录并提前结束（结束必须填写结论）
       router.push({ path: '/layer-expand', query: { layerCode: layer.layerCode, status: 'ACTIVE' } })
       break
+    case 'inventory':
+      // 跳转交班盘点并预填本层开单，登记班次/盘点人
+      router.push({ path: '/inventory', query: { layerCode: layer.layerCode } })
+      break
+    case 'closeInventory':
+      // 跳转交班盘点台账查看本层待闭环单据并闭环（闭环必须填写处理结论）
+      router.push({ path: '/inventory', query: { layerCode: layer.layerCode, status: 'SUBMITTED' } })
+      break
     case 'delete':
       handleDeleteLayer(layer)
       break
@@ -561,6 +591,18 @@ onMounted(loadData)
       font-size: 12px;
       line-height: 1.5;
       border-bottom: 1px solid #faecd8;
+    }
+
+    .unbalanced-banner {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 8px 16px;
+      background: #fef0f0;
+      color: #f56c6c;
+      font-size: 12px;
+      line-height: 1.5;
+      border-bottom: 1px solid #fde2e2;
     }
 
     .layer-card-header {

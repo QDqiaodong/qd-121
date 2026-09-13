@@ -12,8 +12,12 @@
         <result column="shift" property="shift"/>
         <result column="inspector" property="inspector"/>
         <result column="status" property="status"/>
+        <result column="diff_reason" property="diffReason"/>
         <result column="start_time" property="startTime"/>
         <result column="submit_time" property="submitTime"/>
+        <result column="close_time" property="closeTime"/>
+        <result column="close_conclusion" property="closeConclusion"/>
+        <result column="close_operator" property="closeOperator"/>
         <result column="remark" property="remark"/>
         <result column="create_time" property="createTime"/>
         <result column="update_time" property="updateTime"/>
@@ -44,7 +48,7 @@
                 AND s.shelf_code = #{query.shelfCode}
             </if>
             <if test="query.layerCode != null and query.layerCode != ''">
-                AND s.layer_code = #{query.layerCode}
+                AND s.covered_layers LIKE CONCAT('%,', #{query.layerCode}, ',%')
             </if>
             <if test="query.sheetNo != null and query.sheetNo != ''">
                 AND s.sheet_no LIKE CONCAT('%', #{query.sheetNo}, '%')
@@ -62,6 +66,12 @@
 
     <select id="selectInProgress" resultMap="InventorySheetResultMap">
         SELECT * FROM pad_inventory_sheet WHERE status = 'IN_PROGRESS'
+    </select>
+
+    <!-- 待闭环单据：已提交且存在差异（缺失/多出），未闭环前覆盖层位禁止归还上架 -->
+    <select id="selectUnbalanced" resultMap="InventorySheetResultMap">
+        SELECT * FROM pad_inventory_sheet WHERE status = 'SUBMITTED'
+        ORDER BY submit_time DESC, id DESC
     </select>
 
 </mapper>

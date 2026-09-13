@@ -142,6 +142,8 @@ public class PadBorrowService {
         }
         // 归还层位须存在、未封锁且未满（容量配额为 0 的层位同样不可作为归还目标）
         shelfLayerService.lockAndAssertCapacity(returnLayerCode);
+        // 盘点差异未闭环的层位禁止归还上架，闭环后自动恢复
+        shelfLayerService.assertNotUnbalancedForReturn(returnLayerCode);
         // 归还层位必须可用：层位上不存在任何在架垫板
         List<PadInfo> occupied = padInfoMapper.selectByLayerCode(returnLayerCode);
         if (!occupied.isEmpty()) {

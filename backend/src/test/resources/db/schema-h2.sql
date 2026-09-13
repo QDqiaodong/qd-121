@@ -184,3 +184,46 @@ CREATE TABLE IF NOT EXISTS pad_mold_reserve_item (
 CREATE INDEX IF NOT EXISTS idx_pmri_reserve_id ON pad_mold_reserve_item (reserve_id);
 CREATE INDEX IF NOT EXISTS idx_pmri_pad_id ON pad_mold_reserve_item (pad_id);
 CREATE INDEX IF NOT EXISTS idx_pmri_pad_code ON pad_mold_reserve_item (pad_code);
+
+CREATE TABLE IF NOT EXISTS pad_inventory_sheet (
+    id BIGINT NOT NULL AUTO_INCREMENT COMMENT '主键ID',
+    sheet_no VARCHAR(40) NOT NULL COMMENT '盘点单号：PD + 日期时间 + 随机串',
+    scope_type VARCHAR(16) NOT NULL COMMENT '盘点范围：LAYER-按层位、SHELF-按货架',
+    shelf_code VARCHAR(64) DEFAULT NULL COMMENT '货架编码',
+    layer_code VARCHAR(64) DEFAULT NULL COMMENT '层位编码（按层位盘点时的目标层）',
+    covered_layers VARCHAR(1024) NOT NULL COMMENT '覆盖层位编码，逗号包围分隔',
+    shift VARCHAR(16) NOT NULL COMMENT '班次：DAY-白班、MIDDLE-中班、NIGHT-夜班',
+    inspector VARCHAR(64) NOT NULL COMMENT '盘点人',
+    status VARCHAR(16) NOT NULL DEFAULT 'IN_PROGRESS' COMMENT '状态：IN_PROGRESS-盘点中、SUBMITTED-待闭环、CLOSED-已闭环、CANCELLED-已取消',
+    diff_reason VARCHAR(512) DEFAULT NULL COMMENT '差异原因（有差异提交时必填）',
+    start_time DATETIME NOT NULL COMMENT '开单时间',
+    submit_time DATETIME DEFAULT NULL COMMENT '提交时间',
+    close_time DATETIME DEFAULT NULL COMMENT '闭环时间',
+    close_conclusion VARCHAR(512) DEFAULT NULL COMMENT '闭环结论',
+    close_operator VARCHAR(64) DEFAULT NULL COMMENT '闭环人',
+    remark VARCHAR(512) DEFAULT NULL COMMENT '备注',
+    create_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    update_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '更新时间',
+    PRIMARY KEY (id)
+);
+CREATE UNIQUE INDEX IF NOT EXISTS uk_pis_sheet_no ON pad_inventory_sheet (sheet_no);
+CREATE INDEX IF NOT EXISTS idx_pis_status ON pad_inventory_sheet (status);
+CREATE INDEX IF NOT EXISTS idx_pis_shift ON pad_inventory_sheet (shift);
+CREATE INDEX IF NOT EXISTS idx_pis_start_time ON pad_inventory_sheet (start_time);
+
+CREATE TABLE IF NOT EXISTS pad_inventory_item (
+    id BIGINT NOT NULL AUTO_INCREMENT COMMENT '主键ID',
+    sheet_id BIGINT NOT NULL COMMENT '盘点单ID',
+    item_type VARCHAR(16) NOT NULL COMMENT '明细类型：LEDGER-账目在架清单、EXTRA-现场多出补录',
+    pad_id BIGINT DEFAULT NULL COMMENT '垫板ID',
+    pad_code VARCHAR(64) NOT NULL COMMENT '垫板编号',
+    mold_type VARCHAR(128) DEFAULT NULL COMMENT '适配模具（快照）',
+    layer_code VARCHAR(64) NOT NULL COMMENT '明细所属层位',
+    check_result VARCHAR(16) DEFAULT NULL COMMENT '点检结果：MATCH-相符、MISSING-缺失、EXTRA-多出',
+    remark VARCHAR(512) DEFAULT NULL COMMENT '备注',
+    create_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    update_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '更新时间',
+    PRIMARY KEY (id)
+);
+CREATE INDEX IF NOT EXISTS idx_pii_sheet_id ON pad_inventory_item (sheet_id);
+CREATE INDEX IF NOT EXISTS idx_pii_pad_code ON pad_inventory_item (pad_code);

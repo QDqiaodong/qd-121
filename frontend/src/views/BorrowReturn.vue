@@ -283,9 +283,22 @@
           <el-tag type="info" effect="plain">{{ currentRecord?.originLayerCode || '-' }}</el-tag>
         </el-form-item>
         <el-form-item label="归还层位" prop="returnLayerCode">
+          <el-alert
+            v-if="unbalancedLayers.length > 0"
+            class="unbalanced-tip"
+            type="error"
+            :closable="false"
+            show-icon
+            title="以下层位盘点差异未闭环，未闭环前禁止归还上架："
+          >
+            <div v-for="layer in unbalancedLayers" :key="layer.layerCode" class="unbalanced-line">
+              【{{ layer.layerCode }}】{{ layer.activeUnbalanced.diffReason }}
+              （单号 {{ layer.activeUnbalanced.sheetNo }}）
+            </div>
+          </el-alert>
           <el-select
             v-model="returnForm.returnLayerCode"
-            placeholder="请选择可用层位（已占用/已满/封锁层位不可选）"
+            placeholder="请选择可用层位（已占用/已满/封锁/未平账层位不可选）"
             style="width: 100%"
           >
             <el-option
@@ -293,7 +306,7 @@
               :key="layer.layerCode"
               :label="returnLayerLabel(layer)"
               :value="layer.layerCode"
-              :disabled="layer.padCount > 0 || isLayerFull(layer) || isLayerBlocked(layer)"
+              :disabled="layer.padCount > 0 || isLayerFull(layer) || isLayerBlocked(layer) || isLayerUnbalanced(layer)"
             />
           </el-select>
         </el-form-item>
@@ -543,16 +556,22 @@ const returnRules = {
   returnLayerCode: [{ required: true, message: '请选择归还层位', trigger: 'change' }]
 }
 
-// 归还目标：已占用、已达实际配额或封锁中的层位不可选
+// 归还目标：已占用、已达实际配额、封锁中或盘点未平账的层位不可选
 // 实际配额：扩容期内取扩容后配额，到期/结束后回到原配额
 const effCap = (layer) => layer.effectiveCapacity ?? layer.capacity ?? 0
 const isLayerFull = (layer) => (layer.padCount || 0) >= effCap(layer)
 const isLayerBlocked = (layer) => !!layer.activeBlock
+const isLayerUnbalanced = (layer) => !!layer.activeUnbalanced
+// 未平账层位清单：归还弹窗顶部展示未平账原因，与盘点页/层位页/概览同源
+const unbalancedLayers = computed(() => returnLayerOptions.value.filter(isLayerUnbalanced))
 const returnLayerLabel = (layer) => {
   const used = layer.padCount || 0
   const capacity = effCap(layer)
   const expandTag = layer.activeExpand ? '扩容中 ' : ''
   if (isLayerBlocked(layer)) return `${layer.layerCode} - ${layer.layerName}（封锁中，不可归还）`
+  if (isLayerUnbalanced(layer)) {
+    return `${layer.layerCode} - ${layer.layerName}（盘点未平账：${layer.activeUnbalanced.diffReason}，禁止归还）`
+  }
   if (used > 0) return `${layer.layerCode} - ${layer.layerName}（${expandTag}已占用 ${used}/${capacity}）`
   if (isLayerFull(layer)) return `${layer.layerCode} - ${layer.layerName}（${expandTag}已满 ${used}/${capacity}）`
   return `${layer.layerCode} - ${layer.layerName}（${expandTag}空闲可用 ${used}/${capacity}）`
@@ -587,6 +606,10 @@ const submitReturn = async () => {
   }
   if (layer && isLayerBlocked(layer)) {
     ElMessage.warning('该层位处于封锁中，请选择其他可用层位')
+    return
+  }
+  if (layer && isLayerUnbalanced(layer)) {
+    ElMessage.warning(`该层位盘点差异未闭环（${layer.activeUnbalanced.diffReason}），未闭环前禁止归还上架`)
     return
   }
   submitting.value = true
@@ -677,6 +700,15 @@ onMounted(() => {
 .overdue-text {
   color: #f56c6c;
   font-weight: 600;
+}
+
+.unbalanced-tip {
+  margin-bottom: 10px;
+
+  .unbalanced-line {
+    font-size: 12px;
+    line-height: 1.6;
+  }
 }
 
 .form-tip {

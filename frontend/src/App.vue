@@ -52,6 +52,10 @@
               <el-icon><Van /></el-icon>
               <span>垫板领用归还</span>
             </el-menu-item>
+            <el-menu-item index="/inventory">
+              <el-icon><Checked /></el-icon>
+              <span>交班盘点</span>
+            </el-menu-item>
             <el-menu-item index="/maintenance">
               <el-icon><Tools /></el-icon>
               <span>垫板保养台账</span>

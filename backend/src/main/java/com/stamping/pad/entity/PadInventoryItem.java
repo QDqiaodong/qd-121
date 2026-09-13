@@ -20,16 +20,17 @@ public class PadInventoryItem {
     /** LEDGER-档案在架清单生成、EXTRA-现场多出补录 */
     private String itemType;
 
+    /** 垫板ID：多出明细能匹配到档案时回填，否则为空 */
     private Long padId;
 
     private String padCode;
 
     private String moldType;
 
-    /** 该明细所属层位：档案明细取开单时在架层，多出明细为用户指定层 */
+    /** 该明细所属层位：账目明细取开单时在架层，多出明细为用户指定层 */
     private String layerCode;
 
-    /** 点检结果：MATCH-账实相符、MISSING-缺失、EXTRA-多出（多出明细固定） */
+    /** 盘点结果：MATCH-账实相符、MISSING-缺失、EXTRA-多出（多出明细固定） */
     private String checkResult;
 
     private String remark;

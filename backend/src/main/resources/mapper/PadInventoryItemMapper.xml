@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.stamping.pad.mapper.PadInventoryItemMapper">
+
+    <resultMap id="InventoryItemResultMap" type="com.stamping.pad.entity.PadInventoryItem">
+        <id column="id" property="id"/>
+        <result column="sheet_id" property="sheetId"/>
+        <result column="item_type" property="itemType"/>
+        <result column="pad_id" property="padId"/>
+        <result column="pad_code" property="padCode"/>
+        <result column="mold_type" property="moldType"/>
+        <result column="layer_code" property="layerCode"/>
+        <result column="check_result" property="checkResult"/>
+        <result column="remark" property="remark"/>
+        <result column="create_time" property="createTime"/>
+        <result column="update_time" property="updateTime"/>
+        <result column="layer_name" property="layerName"/>
+        <result column="current_layer_code" property="currentLayerCode"/>
+        <result column="maintenance_status" property="maintenanceStatus"/>
+        <result column="borrow_status" property="borrowStatus"/>
+    </resultMap>
+
+    <!-- 盘点明细：联表层位名称与垫板实时在架层/状态，账目明细在前、多出补录在后 -->
+    <select id="selectDetailBySheetId" resultMap="InventoryItemResultMap">
+        SELECT i.*, sl.layer_name,
+               p.shelf_layer_code AS current_layer_code,
+               p.maintenance_status,
+               CASE WHEN br.id IS NOT NULL THEN 'BORROWED' ELSE NULL END AS borrow_status
+        FROM pad_inventory_item i
+        LEFT JOIN shelf_layer sl ON i.layer_code = sl.layer_code
+        LEFT JOIN pad_info p ON i.pad_id = p.id
+        LEFT JOIN pad_borrow_record br ON br.pad_id = p.id AND br.status = 'BORROWED'
+        WHERE i.sheet_id = #{sheetId}
+        ORDER BY CASE WHEN i.item_type = 'LEDGER' THEN 0 ELSE 1 END,
+                 i.layer_code ASC, i.pad_code ASC, i.id ASC
+    </select>
+
+    <!-- 同单同层同编号的多出明细查重（不区分大小写，避免重复补录） -->
+    <select id="selectExtraDuplicate" resultMap="InventoryItemResultMap">
+        SELECT i.* FROM pad_inventory_item i
+        WHERE i.sheet_id = #{sheetId}
+          AND i.item_type = 'EXTRA'
+          AND i.layer_code = #{layerCode}
+          AND UPPER(i.pad_code) = UPPER(#{padCode})
+        LIMIT 1
+    </select>
+
+</mapper>

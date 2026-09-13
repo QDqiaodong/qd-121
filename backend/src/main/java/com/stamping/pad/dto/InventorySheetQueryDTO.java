@@ -11,7 +11,7 @@ public class InventorySheetQueryDTO {
 
     private Long pageSize = 10L;
 
-    /** IN_PROGRESS-点检中、SUBMITTED-已提交、CANCELLED-已取消 */
+    /** IN_PROGRESS-盘点中、SUBMITTED-待闭环、CLOSED-已闭环、CANCELLED-已取消 */
     private String status;
 
     /** DAY/MIDDLE/NIGHT */
@@ -19,6 +19,7 @@ public class InventorySheetQueryDTO {
 
     private String shelfCode;
 
+    /** 按覆盖层位精确匹配（含按货架盘点覆盖到该层的单据） */
     private String layerCode;
 
     /** 单号模糊查询 */
