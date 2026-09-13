@@ -298,15 +298,15 @@
           </el-alert>
           <el-select
             v-model="returnForm.returnLayerCode"
-            placeholder="请选择可用层位（已占用/已满/封锁/未平账层位不可选）"
+            placeholder="请选择可用层位（已占用/已满/封锁层位不可选；未平账层位已排除，见上方提示）"
             style="width: 100%"
           >
             <el-option
-              v-for="layer in returnLayerOptions"
+              v-for="layer in selectableReturnLayers"
               :key="layer.layerCode"
               :label="returnLayerLabel(layer)"
               :value="layer.layerCode"
-              :disabled="layer.padCount > 0 || isLayerFull(layer) || isLayerBlocked(layer) || isLayerUnbalanced(layer)"
+              :disabled="layer.padCount > 0 || isLayerFull(layer) || isLayerBlocked(layer)"
             />
           </el-select>
         </el-form-item>
@@ -556,7 +556,8 @@ const returnRules = {
   returnLayerCode: [{ required: true, message: '请选择归还层位', trigger: 'change' }]
 }
 
-// 归还目标：已占用、已达实际配额、封锁中或盘点未平账的层位不可选
+// 归还目标：盘点未平账层位直接从下拉选项中排除（顶部错误横幅列出原因，与占位口径一致）；
+// 其余已占用、已达实际配额、封锁中的层位保留在选项中但禁用并标注
 // 实际配额：扩容期内取扩容后配额，到期/结束后回到原配额
 const effCap = (layer) => layer.effectiveCapacity ?? layer.capacity ?? 0
 const isLayerFull = (layer) => (layer.padCount || 0) >= effCap(layer)
@@ -564,6 +565,10 @@ const isLayerBlocked = (layer) => !!layer.activeBlock
 const isLayerUnbalanced = (layer) => !!layer.activeUnbalanced
 // 未平账层位清单：归还弹窗顶部展示未平账原因，与盘点页/层位页/概览同源
 const unbalancedLayers = computed(() => returnLayerOptions.value.filter(isLayerUnbalanced))
+// 下拉可选口径：未平账层不列入选项，避免“灰掉占位”与“不可选”文案不一致
+const selectableReturnLayers = computed(() =>
+  returnLayerOptions.value.filter((layer) => !isLayerUnbalanced(layer))
+)
 const returnLayerLabel = (layer) => {
   const used = layer.padCount || 0
   const capacity = effCap(layer)
