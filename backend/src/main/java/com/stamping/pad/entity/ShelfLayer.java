@@ -50,4 +50,8 @@ public class ShelfLayer {
     /** 当前实际配额（非本表字段）：扩容期内取扩容后配额，否则取 capacity；占用进度与可选范围统一按此展示 */
     @TableField(exist = false)
     private Integer effectiveCapacity;
+
+    /** 覆盖本层的待闭环盘点单（非本表字段）：非空表示盘点差异未平账，未闭环前禁止归还上架 */
+    @TableField(exist = false)
+    private PadInventorySheet activeUnbalanced;
 }
