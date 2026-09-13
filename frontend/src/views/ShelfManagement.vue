@@ -46,9 +46,30 @@
                   <el-tag v-if="layer.activeExpand" type="warning" size="small" effect="dark">
                     扩容中
                   </el-tag>
-                  <el-tag v-if="layer.activeUnbalanced" type="danger" size="small" effect="dark">
-                    未平账
-                  </el-tag>
+                  <el-tooltip
+                    v-if="layer.activeUnbalanced"
+                    :content="`盘点差异未平账：${layer.activeUnbalanced.diffReason}（单号 ${layer.activeUnbalanced.sheetNo}），未闭环前禁止归还上架`"
+                    placement="top"
+                  >
+                    <el-tag type="danger" size="small" effect="dark">
+                      未平账
+                    </el-tag>
+                  </el-tooltip>
+                  <el-tooltip
+                    v-else-if="layer.lastClosedInventory"
+                    :content="`盘点差异已闭环：${layer.lastClosedInventory.closeConclusion}（单号 ${layer.lastClosedInventory.sheetNo}，${formatTime(layer.lastClosedInventory.closeTime)} · 处理人 ${layer.lastClosedInventory.closeOperator || '-'}）`"
+                    placement="top"
+                  >
+                    <el-tag
+                      type="success"
+                      size="small"
+                      effect="plain"
+                      class="closed-inventory-tag"
+                      @click="goInventoryRecord(layer)"
+                    >
+                      已闭环：{{ truncateConclusion(layer.lastClosedInventory.closeConclusion) }}
+                    </el-tag>
+                  </el-tooltip>
                 </div>
                 <div class="layer-name">{{ layer.layerName }}</div>
               </div>
@@ -80,6 +101,12 @@
                   <el-dropdown-item v-else command="closeInventory">
                     盘点闭环
                   </el-dropdown-item>
+                  <el-dropdown-item
+                    v-if="layer.lastClosedInventory"
+                    command="inventoryRecord"
+                  >
+                    盘点记录
+                  </el-dropdown-item>
                   <el-dropdown-item command="delete" divided>删除分层</el-dropdown-item>
                 </el-dropdown-menu>
               </template>
@@ -110,6 +137,19 @@
               （单号 {{ layer.activeUnbalanced.sheetNo }} · {{ getShiftLabel(layer.activeUnbalanced.shift) }} ·
               盘点人 {{ layer.activeUnbalanced.inspector }}，未闭环前禁止归还上架）
             </span>
+          </div>
+
+          <div v-else-if="layer.lastClosedInventory" class="closed-inventory-banner">
+            <el-icon><CircleCheck /></el-icon>
+            <span class="closed-inventory-text">
+              盘点差异已闭环：{{ layer.lastClosedInventory.closeConclusion }}
+              （单号 {{ layer.lastClosedInventory.sheetNo }} ·
+              {{ formatTime(layer.lastClosedInventory.closeTime) }} ·
+              处理人 {{ layer.lastClosedInventory.closeOperator || '-' }}，层位已恢复可归还上架）
+            </span>
+            <el-button link type="success" size="small" @click="goInventoryRecord(layer)">
+              盘点记录
+            </el-button>
           </div>
 
           <div class="layer-card-body">
@@ -252,11 +292,36 @@
           <el-tag v-if="currentViewLayer?.activeExpand" type="warning" style="margin-left: 8px">
             扩容中（原配额 {{ currentViewLayer?.capacity ?? 0 }}）
           </el-tag>
+          <el-tooltip
+            v-if="currentViewLayer?.activeUnbalanced"
+            :content="`盘点差异未平账：${currentViewLayer.activeUnbalanced.diffReason}（单号 ${currentViewLayer.activeUnbalanced.sheetNo}），未闭环前禁止归还上架`"
+            placement="top"
+          >
+            <el-tag type="danger" effect="dark" style="margin-left: 8px">未平账</el-tag>
+          </el-tooltip>
+          <el-tooltip
+            v-else-if="currentViewLayer?.lastClosedInventory"
+            :content="`盘点差异已闭环：${currentViewLayer.lastClosedInventory.closeConclusion}（单号 ${currentViewLayer.lastClosedInventory.sheetNo}，${formatTime(currentViewLayer.lastClosedInventory.closeTime)} · 处理人 ${currentViewLayer.lastClosedInventory.closeOperator || '-'}）`"
+            placement="top"
+          >
+            <el-tag type="success" effect="plain" style="margin-left: 8px">
+              已闭环：{{ truncateConclusion(currentViewLayer.lastClosedInventory.closeConclusion) }}
+            </el-tag>
+          </el-tooltip>
         </div>
         <el-button type="success" size="small" @click="handleExportLayer(currentViewLayer)">
           <el-icon><Download /></el-icon>导出本层
         </el-button>
       </div>
+      <el-alert
+        v-if="currentViewLayer?.lastClosedInventory"
+        class="dialog-inventory-tip"
+        type="success"
+        :closable="false"
+        show-icon
+        :title="`盘点差异已闭环：${currentViewLayer.lastClosedInventory.closeConclusion}`"
+        :description="`单号 ${currentViewLayer.lastClosedInventory.sheetNo} · ${getShiftLabel(currentViewLayer.lastClosedInventory.shift)} · 盘点人 ${currentViewLayer.lastClosedInventory.inspector} · 闭环时间 ${formatTime(currentViewLayer.lastClosedInventory.closeTime)} · 处理人 ${currentViewLayer.lastClosedInventory.closeOperator || '-'}，层位已恢复可归还上架`"
+      />
       <el-table :data="currentViewLayer?.padList || []" border size="default">
         <el-table-column type="index" label="序号" width="60" />
         <el-table-column label="实物图" width="80" align="center">
@@ -326,6 +391,20 @@ const getBlockTypeLabel = (type) => BLOCK_TYPE_LABELS[type] || type
 // 盘点班次：与交班盘点台账字典一致
 const SHIFT_LABELS = { DAY: '白班', MIDDLE: '中班', NIGHT: '夜班' }
 const getShiftLabel = (shift) => SHIFT_LABELS[shift] || shift
+
+// 闭环标签仅展示处理结论摘要，完整结论/处理人/闭环时间放在 tooltip 与横幅（与数据概览同口径）
+const truncateConclusion = (text) => {
+  if (!text) return '已闭环'
+  return text.length > 10 ? `${text.slice(0, 10)}…` : text
+}
+
+// 回看本层已闭环盘点单：跳转交班盘点台账并按覆盖层位/已闭环过滤
+const goInventoryRecord = (layer) => {
+  router.push({
+    path: '/inventory',
+    query: { layerCode: layer.layerCode, status: 'CLOSED' }
+  })
+}
 
 const shelfGroups = computed(() => {
   const map = {}
@@ -499,6 +578,10 @@ const handleCardAction = (cmd, layer) => {
       // 跳转交班盘点台账查看本层待闭环单据并闭环（闭环必须填写处理结论）
       router.push({ path: '/inventory', query: { layerCode: layer.layerCode, status: 'SUBMITTED' } })
       break
+    case 'inventoryRecord':
+      // 跳转交班盘点台账回看本层已闭环单据（处理结论/处理人/闭环时间）
+      goInventoryRecord(layer)
+      break
     case 'delete':
       handleDeleteLayer(layer)
       break
@@ -605,6 +688,22 @@ onMounted(loadData)
       border-bottom: 1px solid #fde2e2;
     }
 
+    .closed-inventory-banner {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 8px 16px;
+      background: #f0f9eb;
+      color: #67c23a;
+      font-size: 12px;
+      line-height: 1.5;
+      border-bottom: 1px solid #e1f3d8;
+
+      .closed-inventory-text {
+        flex: 1;
+      }
+    }
+
     .layer-card-header {
       display: flex;
       align-items: flex-start;
@@ -622,6 +721,15 @@ onMounted(loadData)
           font-size: 16px;
           font-weight: 700;
           color: #1e3a8a;
+
+          .closed-inventory-tag {
+            max-width: 200px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            cursor: pointer;
+            vertical-align: baseline;
+          }
         }
         .layer-name {
           font-size: 12px;
@@ -744,6 +852,10 @@ onMounted(loadData)
     display: flex;
     align-items: center;
     justify-content: space-between;
+    margin-bottom: 14px;
+  }
+
+  .dialog-inventory-tip {
     margin-bottom: 14px;
   }
 
