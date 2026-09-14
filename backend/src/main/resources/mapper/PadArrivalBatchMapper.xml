@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.stamping.pad.mapper.PadArrivalBatchMapper">
+
+    <resultMap id="PadArrivalBatchResultMap" type="com.stamping.pad.entity.PadArrivalBatch">
+        <id column="id" property="id"/>
+        <result column="batch_no" property="batchNo"/>
+        <result column="supplier" property="supplier"/>
+        <result column="arrival_time" property="arrivalTime"/>
+        <result column="operator" property="operator"/>
+        <result column="pad_count" property="padCount"/>
+        <result column="status" property="status"/>
+        <result column="inspect_time" property="inspectTime"/>
+        <result column="inspector" property="inspector"/>
+        <result column="inspect_conclusion" property="inspectConclusion"/>
+        <result column="remark" property="remark"/>
+        <result column="create_time" property="createTime"/>
+        <result column="update_time" property="updateTime"/>
+    </resultMap>
+
+    <select id="selectPageList" resultMap="PadArrivalBatchResultMap">
+        SELECT b.*
+        FROM pad_arrival_batch b
+        <where>
+            <if test="query.status != null and query.status != ''">
+                AND b.status = #{query.status}
+            </if>
+            <if test="query.batchNo != null and query.batchNo != ''">
+                AND b.batch_no LIKE CONCAT('%', #{query.batchNo}, '%')
+            </if>
+            <if test="query.operator != null and query.operator != ''">
+                AND b.operator LIKE CONCAT('%', #{query.operator}, '%')
+            </if>
+            <if test="query.padCode != null and query.padCode != ''">
+                AND EXISTS (SELECT 1 FROM pad_arrival_item ci
+                            WHERE ci.batch_id = b.id
+                              AND ci.pad_code LIKE CONCAT('%', #{query.padCode}, '%'))
+            </if>
+            <if test="query.startTime != null">
+                AND b.arrival_time &gt;= #{query.startTime}
+            </if>
+            <if test="query.endTime != null">
+                AND b.arrival_time &lt;= #{query.endTime}
+            </if>
+        </where>
+        ORDER BY b.arrival_time DESC, b.id DESC
+    </select>
+
+    <select id="selectDetailById" resultMap="PadArrivalBatchResultMap">
+        SELECT b.*
+        FROM pad_arrival_batch b
+        WHERE b.id = #{id}
+    </select>
+
+    <!-- 质检判定前对批次行加锁，串行化同一批次的通过/判退并发 -->
+    <select id="lockById" resultMap="PadArrivalBatchResultMap">
+        SELECT b.*
+        FROM pad_arrival_batch b
+        WHERE b.id = #{id}
+        FOR UPDATE
+    </select>
+
+</mapper>

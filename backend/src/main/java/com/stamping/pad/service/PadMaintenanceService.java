@@ -87,6 +87,13 @@ public class PadMaintenanceService {
         if (SCRAPPED.equals(pad.getMaintenanceStatus())) {
             throw new RuntimeException("垫板【" + pad.getPadCode() + "】已报废出库，档案冻结，禁止再登记保养");
         }
+        // 到货待检层垫板由到货质检判定去向，判退离库档案冻结，均不接受保养登记
+        if (PadArrivalService.STOCK_QUARANTINE.equals(pad.getStockStatus())) {
+            throw new RuntimeException("垫板【" + pad.getPadCode() + "】在到货待检层，请先完成到货质检判定，质检通过前不可登记保养");
+        }
+        if (PadArrivalService.STOCK_REJECTED.equals(pad.getStockStatus())) {
+            throw new RuntimeException("垫板【" + pad.getPadCode() + "】已判退离库，档案冻结，禁止登记保养");
+        }
         String statusAfter = dto.getStatusAfter() == null ? "" : dto.getStatusAfter().trim();
         if (!STATUS_SET.contains(statusAfter)) {
             throw new RuntimeException("保养后状态非法，仅支持：可用、待检、停用");

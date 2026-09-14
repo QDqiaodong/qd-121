@@ -10,6 +10,7 @@ import com.stamping.pad.entity.LayerAdjustRecord;
 import com.stamping.pad.entity.PadInfo;
 import com.stamping.pad.service.ExcelExportService;
 import com.stamping.pad.service.LayerAdjustRecordService;
+import com.stamping.pad.service.PadArrivalService;
 import com.stamping.pad.service.PadBorrowService;
 import com.stamping.pad.service.PadInfoService;
 import com.stamping.pad.service.PadMaintenanceService;
@@ -35,6 +36,7 @@ public class PadInfoController {
     private final PadBorrowService padBorrowService;
     private final PadMaintenanceService padMaintenanceService;
     private final PadMoldReserveService padMoldReserveService;
+    private final PadArrivalService padArrivalService;
 
     @GetMapping("/page")
     public Result<Page<PadInfo>> page(PadQueryDTO query) {
@@ -108,6 +110,10 @@ public class PadInfoController {
         stats.putAll(padBorrowService.statistics());
         stats.putAll(padMaintenanceService.statistics());
         stats.put("reserveActiveCount", padMoldReserveService.statistics().get("activeCount"));
+        // 到货待检单独标出：待检层垫板块数（不计可用库存）与待检批次数
+        Map<String, Object> arrivalStats = padArrivalService.statistics();
+        stats.put("quarantineCount", arrivalStats.get("pendingPadCount"));
+        stats.put("arrivalPendingCount", arrivalStats.get("pendingCount"));
         return Result.success(stats);
     }
 }

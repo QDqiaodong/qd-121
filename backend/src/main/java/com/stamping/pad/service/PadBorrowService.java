@@ -180,8 +180,15 @@ public class PadBorrowService {
         return borrowRecordMapper.selectDetailById(record.getId());
     }
 
-    /** 待检/停用/已报废垫板不可领用，归还时也不可作为目标重新上架 */
+    /** 待检/停用/已报废垫板不可领用，归还时也不可作为目标重新上架；到货待检/判退离库垫板同样禁止 */
     private void assertPadUsable(PadInfo pad) {
+        String stockStatus = pad.getStockStatus();
+        if (PadArrivalService.STOCK_QUARANTINE.equals(stockStatus)) {
+            throw new RuntimeException("垫板【" + pad.getPadCode() + "】在到货待检层，质检通过前不可领用/归还上架");
+        }
+        if (PadArrivalService.STOCK_REJECTED.equals(stockStatus)) {
+            throw new RuntimeException("垫板【" + pad.getPadCode() + "】已判退离库，禁止领用/归还");
+        }
         String status = pad.getMaintenanceStatus();
         if ("PENDING".equals(status)) {
             throw new RuntimeException("垫板【" + pad.getPadCode() + "】处于待检状态，暂不可领用/归还，请先在保养台账处理");

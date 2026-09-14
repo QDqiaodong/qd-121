@@ -32,6 +32,10 @@
               <el-icon><UploadFilled /></el-icon>
               <span>垫板批量导入</span>
             </el-menu-item>
+            <el-menu-item index="/arrival">
+              <el-icon><TakeawayBox /></el-icon>
+              <span>到货待检管理</span>
+            </el-menu-item>
             <el-menu-item index="/shelf">
               <el-icon><Box /></el-icon>
               <span>货架层位管理</span>

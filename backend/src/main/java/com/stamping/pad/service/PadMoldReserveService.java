@@ -176,8 +176,15 @@ public class PadMoldReserveService {
         return record;
     }
 
-    /** 预留登记时的垫板校验：必须在架、可用且未被领用离架 */
+    /** 预留登记时的垫板校验：必须在架、可用且未被领用离架；到货待检/判退离库垫板不是可用库存 */
     private void assertPadReservable(PadInfo pad) {
+        String stockStatus = pad.getStockStatus();
+        if (PadArrivalService.STOCK_QUARANTINE.equals(stockStatus)) {
+            throw new RuntimeException("垫板【" + pad.getPadCode() + "】在到货待检层，不可预留，质检通过转正式后再预留");
+        }
+        if (PadArrivalService.STOCK_REJECTED.equals(stockStatus)) {
+            throw new RuntimeException("垫板【" + pad.getPadCode() + "】已判退离库，不可预留");
+        }
         String status = pad.getMaintenanceStatus();
         if ("PENDING".equals(status)) {
             throw new RuntimeException("垫板【" + pad.getPadCode() + "】处于待检状态，不可预留，请先在保养台账恢复为可用");

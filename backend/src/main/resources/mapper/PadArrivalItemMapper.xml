@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.stamping.pad.mapper.PadArrivalItemMapper">
+
+    <resultMap id="PadArrivalItemResultMap" type="com.stamping.pad.entity.PadArrivalItem">
+        <id column="id" property="id"/>
+        <result column="batch_id" property="batchId"/>
+        <result column="pad_id" property="padId"/>
+        <result column="pad_code" property="padCode"/>
+        <result column="mold_type" property="moldType"/>
+        <result column="target_layer_code" property="targetLayerCode"/>
+        <result column="create_time" property="createTime"/>
+        <result column="current_stock_status" property="currentStockStatus"/>
+        <result column="current_layer_code" property="currentLayerCode"/>
+    </resultMap>
+
+    <sql id="itemColumns">
+        i.*, p.stock_status AS current_stock_status, p.shelf_layer_code AS current_layer_code
+    </sql>
+
+    <select id="selectByBatchId" resultMap="PadArrivalItemResultMap">
+        SELECT <include refid="itemColumns"/>
+        FROM pad_arrival_item i
+        LEFT JOIN pad_info p ON p.id = i.pad_id
+        WHERE i.batch_id = #{batchId}
+        ORDER BY i.id ASC
+    </select>
+
+    <select id="selectByBatchIds" resultMap="PadArrivalItemResultMap">
+        SELECT <include refid="itemColumns"/>
+        FROM pad_arrival_item i
+        LEFT JOIN pad_info p ON p.id = i.pad_id
+        WHERE i.batch_id IN
+        <foreach collection="batchIds" item="id" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+        ORDER BY i.batch_id ASC, i.id ASC
+    </select>
+
+</mapper>

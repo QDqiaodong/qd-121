@@ -96,6 +96,13 @@ public class PadScrapService {
         if (SCRAPPED.equals(pad.getMaintenanceStatus())) {
             throw new RuntimeException("垫板【" + pad.getPadCode() + "】已报废出库，禁止重复报废");
         }
+        // 到货待检层垫板质检判退即整批离库，无需也不允许走报废出库；判退离库档案冻结
+        if (PadArrivalService.STOCK_QUARANTINE.equals(pad.getStockStatus())) {
+            throw new RuntimeException("垫板【" + pad.getPadCode() + "】在到货待检层，质检判退即离库，无需报废出库");
+        }
+        if (PadArrivalService.STOCK_REJECTED.equals(pad.getStockStatus())) {
+            throw new RuntimeException("垫板【" + pad.getPadCode() + "】已判退离库，禁止报废出库");
+        }
         // 存在未释放换模预留的垫板须先释放预留，避免预留台账无主、换模上线无板
         padMoldReserveService.assertNotReservedForOffShelf(pad.getId(), pad.getPadCode());
         Long existCount = scrapRecordMapper.selectCount(

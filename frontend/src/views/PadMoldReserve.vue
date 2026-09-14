@@ -482,10 +482,14 @@ const registerRules = {
 }
 
 const isPadAvailable = (pad) => !pad.maintenanceStatus || pad.maintenanceStatus === 'AVAILABLE'
+const isPadOfficial = (pad) => !pad.stockStatus || pad.stockStatus === 'OFFICIAL'
 const isPadReservable = (pad) =>
-  !!(pad.shelfLayerCode && pad.borrowStatus !== 'BORROWED' && isPadAvailable(pad) && !pad.reserveId)
+  !!(pad.shelfLayerCode && pad.borrowStatus !== 'BORROWED' && isPadAvailable(pad) && !pad.reserveId
+    && isPadOfficial(pad))
 
 const padOptionLabel = (pad) => {
+  if (pad.stockStatus === 'QUARANTINE') return `${pad.padCode}（到货待检层，不可预留）`
+  if (pad.stockStatus === 'REJECTED') return `${pad.padCode}（已判退离库，不可预留）`
   if (!isPadAvailable(pad)) {
     return `${pad.padCode}（${getMaintenanceLabel(pad.maintenanceStatus)}，不可预留）`
   }

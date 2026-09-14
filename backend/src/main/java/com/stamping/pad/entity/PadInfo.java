@@ -35,6 +35,9 @@ public class PadInfo {
     /** 保养状态：AVAILABLE-可用、PENDING-待检、DISABLED-停用 */
     private String maintenanceStatus;
 
+    /** 库存状态：QUARANTINE-到货待检（待检层）、OFFICIAL-正式在库、REJECTED-判退离库 */
+    private String stockStatus;
+
     private LocalDateTime createTime;
 
     private LocalDateTime updateTime;

@@ -438,15 +438,19 @@ const getStatusTagType = (status) => {
 }
 
 const hasSuggestion = (padId) => suggestionPadIds.value.includes(padId)
+// 到货待检/判退离库垫板由到货质检闭环管理（判退即离库），不走报废出库
+const isPadArrivalFrozen = (pad) => pad.stockStatus === 'QUARANTINE' || pad.stockStatus === 'REJECTED'
 const isPadScrappable = (pad) =>
-  hasSuggestion(pad.id) && pad.borrowStatus !== 'BORROWED' && !pad.reserveId
+  hasSuggestion(pad.id) && pad.borrowStatus !== 'BORROWED' && !pad.reserveId && !isPadArrivalFrozen(pad)
 
 const padOptionLabel = (pad) => {
   const parts = [`${pad.padCode}（${pad.moldType || '无模具'} / ${getStatusLabel(pad.maintenanceStatus)}`]
   if (pad.borrowStatus === 'BORROWED') parts.push('领用中')
   if (pad.shelfLayerCode) parts.push('层位:' + pad.shelfLayerCode)
   let label = parts.join(' / ') + '）'
-  if (!hasSuggestion(pad.id)) label += '【无报废建议】'
+  if (pad.stockStatus === 'QUARANTINE') label += '【到货待检层，判退即离库】'
+  else if (pad.stockStatus === 'REJECTED') label += '【已判退离库】'
+  else if (!hasSuggestion(pad.id)) label += '【无报废建议】'
   else if (pad.reserveId) label += `【已预留给模具 ${pad.reserveMoldCode || ''}】`
   else if (pad.borrowStatus === 'BORROWED') label += '【领用中】'
   return label

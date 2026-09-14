@@ -180,7 +180,7 @@
               :key="pad.id"
               :label="padOptionLabel(pad)"
               :value="pad.id"
-              :disabled="isPadScrapped(pad)"
+              :disabled="isPadScrapped(pad) || isPadArrivalFrozen(pad)"
             />
           </el-select>
         </el-form-item>
@@ -493,10 +493,14 @@ const willAutoOffShelf = computed(() => {
 })
 
 const isPadScrapped = (pad) => pad.maintenanceStatus === 'SCRAPPED'
+// 到货待检/判退离库垫板由到货质检闭环管理，不接受保养登记
+const isPadArrivalFrozen = (pad) => pad.stockStatus === 'QUARANTINE' || pad.stockStatus === 'REJECTED'
 
 const padOptionLabel = (pad) => {
   const status = getStatusLabel(pad.maintenanceStatus)
   if (isPadScrapped(pad)) return `${pad.padCode}（已报废出库，禁止保养登记）`
+  if (pad.stockStatus === 'QUARANTINE') return `${pad.padCode}（到货待检层，质检通过前不可保养）`
+  if (pad.stockStatus === 'REJECTED') return `${pad.padCode}（已判退离库，禁止保养登记）`
   return `${pad.padCode}（${pad.moldType || '无模具'} / ${status}）`
 }
 

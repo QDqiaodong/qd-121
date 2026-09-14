@@ -20,6 +20,12 @@ const routes = [
     meta: { title: '垫板档案批量导入' }
   },
   {
+    path: '/arrival',
+    name: 'ArrivalInspection',
+    component: () => import('@/views/ArrivalInspection.vue'),
+    meta: { title: '到货待检管理' }
+  },
+  {
     path: '/shelf',
     name: 'ShelfManagement',
     component: () => import('@/views/ShelfManagement.vue'),

@@ -443,9 +443,17 @@ const getMaintenanceTagType = (status) => {
 }
 const isPadAvailable = (pad) => !pad.maintenanceStatus || pad.maintenanceStatus === 'AVAILABLE'
 
+const isPadOfficial = (pad) => !pad.stockStatus || pad.stockStatus === 'OFFICIAL'
 const isPadCheckoutable = (pad) =>
-  !!(pad.shelfLayerCode && pad.borrowStatus !== 'BORROWED' && isPadAvailable(pad) && !pad.reserveId)
+  !!(pad.shelfLayerCode && pad.borrowStatus !== 'BORROWED' && isPadAvailable(pad) && !pad.reserveId
+    && isPadOfficial(pad))
 const padOptionLabel = (pad) => {
+  if (pad.stockStatus === 'QUARANTINE') {
+    return `${pad.padCode}（到货待检层，质检通过前不可领用）`
+  }
+  if (pad.stockStatus === 'REJECTED') {
+    return `${pad.padCode}（已判退离库，不可领用）`
+  }
   if (pad.maintenanceStatus === 'SCRAPPED') {
     return `${pad.padCode}（已报废出库，不可领用）`
   }

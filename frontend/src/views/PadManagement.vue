@@ -77,6 +77,18 @@
             <el-option label="已报废" value="SCRAPPED" />
           </el-select>
         </el-form-item>
+        <el-form-item label="库存状态">
+          <el-select
+            v-model="searchForm.stockStatus"
+            placeholder="全部状态"
+            clearable
+            style="width: 140px"
+          >
+            <el-option label="正式在库" value="OFFICIAL" />
+            <el-option label="到货待检" value="QUARANTINE" />
+            <el-option label="判退离库" value="REJECTED" />
+          </el-select>
+        </el-form-item>
         <el-form-item>
           <el-button type="primary" @click="handleSearch">
             <el-icon><Search /></el-icon>查询
@@ -118,7 +130,15 @@
       </el-table-column>
       <el-table-column label="层位状态" width="180">
         <template #default="{ row }">
-          <template v-if="isPadScrapped(row)">
+          <template v-if="isPadQuarantined(row)">
+            <el-tag type="warning" effect="dark">到货待检</el-tag>
+            <div style="font-size: 12px; color: #e6a23c; margin-top: 2px">待检层 · 不计可用库存</div>
+          </template>
+          <template v-else-if="isPadRejected(row)">
+            <el-tag type="info" effect="dark">已判退离库</el-tag>
+            <div style="font-size: 12px; color: #909399; margin-top: 2px">档案冻结 · 不占层位</div>
+          </template>
+          <template v-else-if="isPadScrapped(row)">
             <el-tag type="danger" effect="dark">已报废出库</el-tag>
             <div style="font-size: 12px; color: #f56c6c; margin-top: 2px">档案冻结 · 不占层位</div>
           </template>
@@ -163,7 +183,26 @@
       </el-table-column>
       <el-table-column label="操作" width="530" fixed="right">
         <template #default="{ row }">
-          <template v-if="isPadScrapped(row)">
+          <template v-if="isPadRejected(row)">
+            <el-button link type="primary" size="small" @click="goArrival(row)">到货记录</el-button>
+            <el-tooltip content="已判退离库，档案冻结，禁止领用/上架/编辑/删除" placement="top">
+              <el-button link type="info" size="small" disabled>操作已冻结</el-button>
+            </el-tooltip>
+          </template>
+          <template v-else-if="isPadQuarantined(row)">
+            <el-button link type="primary" size="small" @click="goArrival(row)">到货记录</el-button>
+            <el-button link type="primary" size="small" @click="handleEdit(row)">编辑</el-button>
+            <el-button link type="primary" size="small" @click="handleViewRecord(row)">
+              调整记录
+            </el-button>
+            <el-tooltip content="待检层垫板不可上架/换绑，质检通过后整批转正式层" placement="top">
+              <el-button link type="primary" size="small" disabled>绑定层位</el-button>
+            </el-tooltip>
+            <el-tooltip content="待检层垫板由质检判定去向（通过转正式/判退离库），不可删除" placement="top">
+              <el-button link type="danger" size="small" disabled>删除</el-button>
+            </el-tooltip>
+          </template>
+          <template v-else-if="isPadScrapped(row)">
             <el-button link type="danger" size="small" @click="goScrap(row)">报废记录</el-button>
             <el-tooltip content="已报废出库，档案冻结，禁止领用/回架/编辑/删除" placement="top">
               <el-button link type="info" size="small" disabled>操作已冻结</el-button>
@@ -390,10 +429,13 @@
                   :key="layer.layerCode"
                   :label="layerOptionLabel(layer)"
                   :value="layer.layerCode"
-                  :disabled="(isLayerFull(layer) && layer.layerCode !== formData.shelfLayerCode) || (isLayerBlocked(layer) && layer.layerCode !== formData.shelfLayerCode) || (isEdit && !isPadAvailable(formData)) || (isEdit && formData.reserveId && layer.layerCode !== formData.shelfLayerCode)"
+                  :disabled="(isLayerFull(layer) && layer.layerCode !== formData.shelfLayerCode) || (isLayerBlocked(layer) && layer.layerCode !== formData.shelfLayerCode) || (isEdit && !isPadAvailable(formData)) || (isEdit && isPadQuarantined(formData)) || (isEdit && formData.reserveId && layer.layerCode !== formData.shelfLayerCode)"
                 />
               </el-select>
-              <div v-if="isEdit && formData.reserveId" class="form-tip">
+              <div v-if="isEdit && isPadQuarantined(formData)" class="form-tip">
+                到货待检垫板不可上架/换绑，质检通过后整批转正式层（可编辑编号、规格等非层位信息）
+              </div>
+              <div v-else-if="isEdit && formData.reserveId" class="form-tip">
                 该垫板已预留给模具 {{ formData.reserveMoldCode || '-' }}，预留期内禁止换层/解绑（可保留原层位编辑其他信息）
               </div>
               <div v-else-if="isEdit && !isPadAvailable(formData)" class="form-tip">
@@ -547,7 +589,8 @@ const searchForm = reactive({
   moldType: '',
   shelfCode: '',
   shelfLayerCode: '',
-  maintenanceStatus: ''
+  maintenanceStatus: '',
+  stockStatus: ''
 })
 
 // 查询区的层位选项按所选货架级联，避免货架编号与层位编码矛盾导致恒空结果；
@@ -636,8 +679,16 @@ const getMaintenanceTagType = (status) => {
 }
 const isPadAvailable = (pad) => !pad.maintenanceStatus || pad.maintenanceStatus === 'AVAILABLE'
 const isPadScrapped = (pad) => pad.maintenanceStatus === 'SCRAPPED'
+// 库存状态：到货待检（待检层，不可领用/换绑/计入可用库存）、判退离库（档案冻结）
+const isPadQuarantined = (pad) => pad.stockStatus === 'QUARANTINE'
+const isPadRejected = (pad) => pad.stockStatus === 'REJECTED'
 // 保养台账给出过“报废建议”的垫板，档案页提供报废出库快捷入口
 const hasScrapSuggestion = (pad) => !!pad.scrapSuggested && !isPadScrapped(pad)
+
+// 到货待检台账：跳转并按垫板编号筛选所属批次
+const goArrival = (row) => {
+  router.push({ path: '/arrival', query: { padCode: row.padCode } })
+}
 
 const handleMaintenance = (row) => {
   router.push({ path: '/maintenance', query: { padId: row.id, padCode: row.padCode } })
@@ -692,6 +743,7 @@ const loadData = async () => {
       }
     })
     if (!params.maintenanceStatus) delete params.maintenanceStatus
+    if (!params.stockStatus) delete params.stockStatus
     const data = await getPadPage(params)
     tableData.value = data.records || []
     pagination.total = data.total || 0
@@ -744,7 +796,8 @@ const handleReset = () => {
     moldType: '',
     shelfCode: '',
     shelfLayerCode: '',
-    maintenanceStatus: ''
+    maintenanceStatus: '',
+    stockStatus: ''
   })
   handleSearch()
 }
@@ -785,6 +838,11 @@ const handleDialogClosed = () => {
 
 const handleSubmit = async () => {
   await formRef.value?.validate()
+  // 到货待检垫板不可上架/换绑（可编辑非层位信息），后端同样二次校验
+  if (isEdit.value && isPadQuarantined(formData) && formData.shelfLayerCode) {
+    ElMessage.warning('到货待检垫板不可上架/换绑，质检通过后整批转正式层')
+    return
+  }
   // 待检/停用垫板不可上架（允许清空层位解绑），后端同样二次校验
   if (isEdit.value && !isPadAvailable(formData) && formData.shelfLayerCode) {
     ElMessage.warning('待检/停用垫板不可上架，请先在保养台账恢复为可用')

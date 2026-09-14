@@ -45,6 +45,7 @@ public class PadInfoService {
 
     /** 待检/停用/已报废垫板不允许上架（绑定/换绑/编辑换层），登记保养时已自动离架，须先恢复为可用 */
     private void assertPadBindable(PadInfo pad) {
+        assertStockOfficial(pad, "上架");
         String status = pad.getMaintenanceStatus();
         if ("PENDING".equals(status)) {
             throw new RuntimeException("垫板【" + pad.getPadCode() + "】处于待检状态，不可上架，请先在保养台账恢复为可用");
@@ -54,6 +55,21 @@ public class PadInfoService {
         }
         if ("SCRAPPED".equals(status)) {
             throw new RuntimeException("垫板【" + pad.getPadCode() + "】已报废出库，禁止重新上架");
+        }
+    }
+
+    /**
+     * 到货待检/判退离库的垫板不是可用库存：禁止上架、换绑、解绑等层位操作。
+     * 待检层垫板只能走到货质检判定（通过整批转正式层 / 判退整批离库）。
+     */
+    private void assertStockOfficial(PadInfo pad, String action) {
+        String stockStatus = pad.getStockStatus();
+        if (PadArrivalService.STOCK_QUARANTINE.equals(stockStatus)) {
+            throw new RuntimeException("垫板【" + pad.getPadCode() + "】在到货待检层，不可" + action
+                    + "，质检通过后将整批转正式层");
+        }
+        if (PadArrivalService.STOCK_REJECTED.equals(stockStatus)) {
+            throw new RuntimeException("垫板【" + pad.getPadCode() + "】已判退离库，禁止" + action);
         }
     }
 
@@ -107,6 +123,8 @@ public class PadInfoService {
         BeanUtils.copyProperties(dto, padInfo);
         // 新建档案默认“可用”，避免保养状态字段为空导致领用/归还判断异常
         padInfo.setMaintenanceStatus("AVAILABLE");
+        // 常规建档直接入正式库存（新到垫板走货到登记落待检层）
+        padInfo.setStockStatus(PadArrivalService.STOCK_OFFICIAL);
         padInfo.setCreateTime(LocalDateTime.now());
         padInfo.setUpdateTime(LocalDateTime.now());
 
@@ -142,6 +160,10 @@ public class PadInfoService {
         // 已报废出库的档案冻结，禁止编辑（报废台账留存）
         if ("SCRAPPED".equals(existing.getMaintenanceStatus())) {
             throw new RuntimeException("垫板【" + existing.getPadCode() + "】已报废出库，档案冻结，禁止编辑");
+        }
+        // 已判退离库的档案冻结，禁止编辑（到货台账留存）
+        if (PadArrivalService.STOCK_REJECTED.equals(existing.getStockStatus())) {
+            throw new RuntimeException("垫板【" + existing.getPadCode() + "】已判退离库，档案冻结，禁止编辑");
         }
 
         if (!existing.getPadCode().equals(dto.getPadCode())) {
@@ -226,6 +248,14 @@ public class PadInfoService {
         if ("SCRAPPED".equals(padInfo.getMaintenanceStatus())) {
             throw new RuntimeException("垫板已报废出库，档案随报废台账留存，禁止删除");
         }
+        // 待检层垫板只能经质检判定离库（判退），不能直接删除，避免到货台账留下无主明细
+        if (PadArrivalService.STOCK_QUARANTINE.equals(padInfo.getStockStatus())) {
+            throw new RuntimeException("垫板【" + padInfo.getPadCode()
+                    + "】在到货待检层，禁止删除，请先完成质检判定（通过转正式或判退离库）");
+        }
+        if (PadArrivalService.STOCK_REJECTED.equals(padInfo.getStockStatus())) {
+            throw new RuntimeException("垫板【" + padInfo.getPadCode() + "】已判退离库，档案随到货台账留存，禁止删除");
+        }
         if (padInfo.getShelfLayerCode() != null && !padInfo.getShelfLayerCode().isEmpty()) {
             throw new RuntimeException("请先解绑货架分层后再删除垫板");
         }
@@ -284,6 +314,8 @@ public class PadInfoService {
         if ("SCRAPPED".equals(padInfo.getMaintenanceStatus())) {
             throw new RuntimeException("垫板【" + padInfo.getPadCode() + "】已报废出库，禁止解绑/回架操作");
         }
+        // 待检层/判退离库垫板不参与层位操作
+        assertStockOfficial(padInfo, "解绑/换层");
         // 换模预留生效期内禁止解绑，预留板须留在原层位待换模上线
         padMoldReserveService.assertNotEffectivelyReserved(padInfo);
 
@@ -327,6 +359,10 @@ public class PadInfoService {
         LocalDateTime now = LocalDateTime.now();
         if (padInfo.getMaintenanceStatus() == null || padInfo.getMaintenanceStatus().isEmpty()) {
             padInfo.setMaintenanceStatus("AVAILABLE");
+        }
+        // 批量导入直接入正式库存（新到垫板走货到登记落待检层）
+        if (padInfo.getStockStatus() == null || padInfo.getStockStatus().isEmpty()) {
+            padInfo.setStockStatus(PadArrivalService.STOCK_OFFICIAL);
         }
         padInfo.setCreateTime(now);
         padInfo.setUpdateTime(now);

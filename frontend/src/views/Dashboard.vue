@@ -1,43 +1,43 @@
 <template>
   <div class="dashboard">
-    <el-row :gutter="20" class="stat-row">
-      <el-col :span="6">
-        <div class="stat-card card-total">
-          <div class="stat-icon"><el-icon :size="36"><Goods /></el-icon></div>
-          <div class="stat-content">
-            <div class="stat-label">垫板总数</div>
-            <div class="stat-value">{{ statistics.totalCount || 0 }}</div>
-          </div>
+    <div class="stat-row">
+      <div class="stat-card card-total">
+        <div class="stat-icon"><el-icon :size="36"><Goods /></el-icon></div>
+        <div class="stat-content">
+          <div class="stat-label">垫板总数</div>
+          <div class="stat-value">{{ statistics.totalCount || 0 }}</div>
         </div>
-      </el-col>
-      <el-col :span="6">
-        <div class="stat-card card-bound">
-          <div class="stat-icon"><el-icon :size="36"><CircleCheck /></el-icon></div>
-          <div class="stat-content">
-            <div class="stat-label">已绑定层位</div>
-            <div class="stat-value">{{ statistics.boundCount || 0 }}</div>
-          </div>
+      </div>
+      <div class="stat-card card-bound">
+        <div class="stat-icon"><el-icon :size="36"><CircleCheck /></el-icon></div>
+        <div class="stat-content">
+          <div class="stat-label">已绑定层位</div>
+          <div class="stat-value">{{ statistics.boundCount || 0 }}</div>
         </div>
-      </el-col>
-      <el-col :span="6">
-        <div class="stat-card card-borrowed" @click="goBorrow">
-          <div class="stat-icon"><el-icon :size="36"><Van /></el-icon></div>
-          <div class="stat-content">
-            <div class="stat-label">领用中（离架）</div>
-            <div class="stat-value">{{ statistics.borrowedCount || 0 }}</div>
-          </div>
+      </div>
+      <div class="stat-card card-quarantine" @click="goArrival">
+        <div class="stat-icon"><el-icon :size="36"><TakeawayBox /></el-icon></div>
+        <div class="stat-content">
+          <div class="stat-label">到货待检占用</div>
+          <div class="stat-value">{{ statistics.quarantineCount || 0 }}</div>
+          <div class="stat-sub">待检批次 {{ statistics.arrivalPendingCount || 0 }} 个</div>
         </div>
-      </el-col>
-      <el-col :span="6">
-        <div class="stat-card card-unbound" @click="goBorrowOverdue">
-          <div class="stat-icon"><el-icon :size="36"><Warning /></el-icon></div>
-          <div class="stat-content">
-            <div class="stat-label">逾期未还</div>
-            <div class="stat-value">{{ statistics.overdueCount || 0 }}</div>
-          </div>
+      </div>
+      <div class="stat-card card-borrowed" @click="goBorrow">
+        <div class="stat-icon"><el-icon :size="36"><Van /></el-icon></div>
+        <div class="stat-content">
+          <div class="stat-label">领用中（离架）</div>
+          <div class="stat-value">{{ statistics.borrowedCount || 0 }}</div>
         </div>
-      </el-col>
-    </el-row>
+      </div>
+      <div class="stat-card card-unbound" @click="goBorrowOverdue">
+        <div class="stat-icon"><el-icon :size="36"><Warning /></el-icon></div>
+        <div class="stat-content">
+          <div class="stat-label">逾期未还</div>
+          <div class="stat-value">{{ statistics.overdueCount || 0 }}</div>
+        </div>
+      </div>
+    </div>
 
     <el-row :gutter="20" class="content-row">
       <el-col :span="16">
@@ -150,6 +150,7 @@ import dayjs from 'dayjs'
 const router = useRouter()
 const goBorrow = () => router.push('/borrow')
 const goBorrowOverdue = () => router.push({ path: '/borrow', query: { overdue: 1 } })
+const goArrival = () => router.push({ path: '/arrival', query: { status: 'PENDING' } })
 
 const statistics = reactive({
   totalCount: 0,
@@ -157,7 +158,9 @@ const statistics = reactive({
   unboundCount: 0,
   borrowedCount: 0,
   returnedCount: 0,
-  overdueCount: 0
+  overdueCount: 0,
+  quarantineCount: 0,
+  arrivalPendingCount: 0
 })
 const groupedShelves = ref([])
 const recentRecords = ref([])
@@ -277,9 +280,13 @@ onMounted(refreshData)
 .dashboard {
   .stat-row {
     margin-bottom: 20px;
+    display: flex;
+    gap: 20px;
   }
 
   .stat-card {
+    flex: 1;
+    min-width: 0;
     display: flex;
     align-items: center;
     padding: 24px;
@@ -298,6 +305,10 @@ onMounted(refreshData)
     }
     &.card-bound {
       background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+    }
+    &.card-quarantine {
+      background: linear-gradient(135deg, #b88230 0%, #8c5e10 100%);
+      cursor: pointer;
     }
     &.card-borrowed {
       background: linear-gradient(135deg, #f6a84c 0%, #f5851f 100%);
@@ -322,6 +333,11 @@ onMounted(refreshData)
         font-size: 34px;
         font-weight: 700;
         line-height: 1;
+      }
+      .stat-sub {
+        margin-top: 4px;
+        font-size: 12px;
+        opacity: 0.85;
       }
     }
   }
